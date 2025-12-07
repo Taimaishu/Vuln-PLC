@@ -630,11 +630,202 @@ Track these KPIs:
 
 ---
 
+## PCAP Analysis Exercises
+
+### Exercise 5: Packet Capture and Analysis
+
+**Objective**: Learn to capture, analyze, and reconstruct attacks from packet data
+
+#### Part 1: Capture Attack Traffic
+
+```bash
+# Start environment with IDS (captures PCAP automatically)
+docker-compose --profile full up -d
+
+# Or manually start PCAP capture
+python3 -c "
+from modbus_ids import ModbusIDS
+ids = ModbusIDS(pcap_dir='./forensics_pcaps')
+ids.start()
+"
+
+# Perform test attacks
+# 1. Unauthorized write
+modbus write localhost:5502 10 9999
+
+# 2. Sequential scan
+for i in {0..50}; do modbus read localhost:5502 $i 1; sleep 0.1; done
+
+# 3. Flooding
+for i in {1..100}; do modbus read localhost:5502 0 1; done
+
+# Stop capture after 60 seconds
+sleep 60
+```
+
+#### Part 2: Extract PCAP Files
+
+```bash
+# Copy from Docker container
+docker cp vuln-modbus-ids:/app/pcaps/ ./investigation/
+
+# Or check local directory
+ls -lh pcaps/*.pcap
+```
+
+#### Part 3: Basic Analysis
+
+```bash
+# Count total Modbus packets
+tcpdump -r pcaps/modbus_*.pcap 'tcp port 502' | wc -l
+
+# Show unique source IPs
+tcpdump -r pcaps/modbus_*.pcap -nn 'tcp port 502' | \
+  awk '{print $3}' | cut -d. -f1-4 | sort -u
+
+# Extract Modbus function codes
+tshark -r pcaps/modbus_*.pcap -Y modbus -T fields -e modbus.func_code | \
+  sort | uniq -c | sort -rn
+```
+
+#### Part 4: Detect Attack Patterns
+
+**Unauthorized Write Detection:**
+```bash
+# Find all Write Single Register commands (FC06)
+tshark -r pcaps/modbus_*.pcap -Y "modbus.func_code == 6" \
+  -T fields -e frame.time -e ip.src -e modbus.regnum16 -e modbus.regval_uint16
+```
+
+**Sequential Scanning:**
+```bash
+# Show sequential address access
+tshark -r pcaps/modbus_*.pcap -Y "modbus.func_code == 3" \
+  -T fields -e frame.number -e modbus.regnum16 | \
+  awk '{if (prev) print prev, $2-prev_addr; prev=$1; prev_addr=$2}'
+```
+
+**Flooding Detection:**
+```bash
+# Count requests per second
+tshark -r pcaps/modbus_*.pcap -T fields -e frame.time_epoch -e ip.src | \
+  awk '{count[int($1)" "$2]++} END {for (key in count) print key, count[key]}' | \
+  sort -k1 -n
+```
+
+#### Part 5: Wireshark Deep Dive
+
+```bash
+wireshark pcaps/modbus_*.pcap
+```
+
+**Wireshark Filters to Use:**
+
+```
+# Show only Modbus traffic
+modbus
+
+# Write operations only
+modbus.func_code == 6 || modbus.func_code == 16
+
+# Specific register access
+modbus.regnum16 == 10
+
+# Large writes (potential attack)
+modbus.word_cnt > 10
+
+# Exception responses (errors)
+modbus.func_code > 128
+
+# Conversation between specific IPs
+ip.addr == 192.168.100.10 && ip.addr == 192.168.1.100
+```
+
+#### Part 6: Timeline Reconstruction
+
+Create attack timeline from PCAP:
+
+```bash
+# Extract all Modbus operations with timestamps
+tshark -r pcaps/modbus_*.pcap -Y modbus -T fields \
+  -e frame.time \
+  -e ip.src \
+  -e ip.dst \
+  -e modbus.func_code \
+  -e modbus.regnum16 \
+  -e modbus.regval_uint16 > timeline.csv
+
+# Analyze in spreadsheet or Python
+python3 << 'EOF'
+import csv
+with open('timeline.csv') as f:
+    reader = csv.reader(f, delimiter='\t')
+    for row in reader:
+        time, src, dst, fc, addr, val = row
+        fc_name = {
+            '3': 'READ', '4': 'READ',
+            '6': 'WRITE', '16': 'WRITE_MULTI'
+        }.get(fc, fc)
+        print(f"[{time}] {src} → {dst}: {fc_name} addr={addr} val={val}")
+EOF
+```
+
+#### Part 7: Incident Report
+
+**Template:**
+```markdown
+# Incident Report: [Attack Type]
+
+## Executive Summary
+- Date/Time: [timestamp]
+- Affected Systems: [PLCs, networks]
+- Attack Type: [unauthorized write, DoS, etc.]
+- Impact: [consequences]
+
+## Timeline
+1. [HH:MM:SS] - Initial reconnaissance detected
+2. [HH:MM:SS] - Unauthorized access attempt
+3. [HH:MM:SS] - Malicious commands executed
+4. [HH:MM:SS] - IDS alert triggered
+5. [HH:MM:SS] - Response initiated
+
+## Technical Analysis
+- Source IP: [attacker IP]
+- Target: [PLC-X, register Y]
+- Function Codes Used: [FC06, FC16]
+- Commands Executed: [details]
+
+## Evidence
+- PCAP file: modbus_20241207_143022.pcap
+- IDS alerts: [count] total, [count] critical
+- Screenshots: [attached]
+
+## Impact Assessment
+- Process disruption: [Yes/No]
+- Safety incidents: [overflow, pressure, etc.]
+- Data integrity: [compromised/intact]
+
+## Remediation
+- Actions taken: [blocked IP, restored values]
+- Time to contain: [X minutes]
+- Time to recover: [Y minutes]
+
+## Recommendations
+1. Implement firewall rules
+2. Add IDS signatures
+3. Enable authentication
+4. Increase monitoring
+```
+
+---
+
 ## Resources
 
 ### Tools
 
-- **Wireshark**: Protocol analysis
+- **Wireshark**: Protocol analysis and PCAP inspection
+- **tshark**: Command-line packet analysis
+- **tcpdump**: Packet capture and basic analysis
 - **Nmap**: Network scanning
 - **Metasploit**: Penetration testing
 - **Zeek (Bro)**: Network security monitoring

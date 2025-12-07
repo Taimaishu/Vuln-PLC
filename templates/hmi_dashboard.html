@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICS SCADA HMI - Water Treatment Plant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #00ff00;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #00ff00;
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 20px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 15px;
+            border-radius: 5px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.green { background: #00ff00; }
+        .status-dot.red { background: #ff0000; }
+        .status-dot.yellow { background: #ffff00; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            padding: 20px;
+            height: calc(100vh - 80px);
+        }
+
+        .pid-diagram {
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pid-diagram h2 {
+            color: #00ff00;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .process-area {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .equipment {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid #0ff;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .equipment h3 {
+            color: #0ff;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .tank-visual {
+            width: 150px;
+            height: 200px;
+            border: 3px solid #0ff;
+            margin: 20px auto;
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .tank-level {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: linear-gradient(0deg, #00f, #0ff);
+            transition: height 0.5s ease;
+        }
+
+        .tank-label {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 10px #000;
+            z-index: 10;
+        }
+
+        .gauge {
+            width: 150px;
+            height: 150px;
+            margin: 20px auto;
+            position: relative;
+        }
+
+        .gauge-circle {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 8px solid #333;
+            background: radial-gradient(circle, #111, #000);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .gauge-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #00ff00;
+        }
+
+        .gauge-label {
+            position: absolute;
+            bottom: -25px;
+            width: 100%;
+            text-align: center;
+            color: #0ff;
+            font-size: 14px;
+        }
+
+        .indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+            justify-content: center;
+        }
+
+        .indicator-light {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #333;
+        }
+
+        .indicator-light.on {
+            background: #00ff00;
+            box-shadow: 0 0 15px #00ff00;
+        }
+
+        .indicator-light.off {
+            background: #333;
+        }
+
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .control-btn {
+            padding: 10px;
+            border: 2px solid #00ff00;
+            background: rgba(0, 255, 0, 0.1);
+            color: #00ff00;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .control-btn:hover {
+            background: rgba(0, 255, 0, 0.3);
+            box-shadow: 0 0 15px #00ff00;
+        }
+
+        .control-btn.danger {
+            border-color: #ff0000;
+            color: #ff0000;
+            background: rgba(255, 0, 0, 0.1);
+        }
+
+        .control-btn.danger:hover {
+            background: rgba(255, 0, 0, 0.3);
+            box-shadow: 0 0 15px #ff0000;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .alarm-panel {
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #ff0000;
+            border-radius: 10px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .alarm-panel h2 {
+            color: #ff0000;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alarm-item {
+            background: rgba(255, 0, 0, 0.1);
+            border-left: 4px solid #ff0000;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+            animation: flash 2s infinite;
+        }
+
+        .alarm-item.critical {
+            border-left-color: #ff0000;
+            background: rgba(255, 0, 0, 0.2);
+        }
+
+        .alarm-item.high {
+            border-left-color: #ff6600;
+            background: rgba(255, 102, 0, 0.1);
+        }
+
+        .alarm-item.medium {
+            border-left-color: #ffff00;
+            background: rgba(255, 255, 0, 0.1);
+        }
+
+        @keyframes flash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .stats-panel {
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #0ff;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .stats-panel h2 {
+            color: #0ff;
+            margin-bottom: 15px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+        }
+
+        .stat-label {
+            color: #aaa;
+        }
+
+        .stat-value {
+            color: #0ff;
+            font-weight: bold;
+        }
+
+        .warning-banner {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ff0000;
+            color: #fff;
+            padding: 15px 30px;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 18px;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+            animation: shake 0.5s infinite;
+            display: none;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            25% { transform: translateX(-50%) translateY(-5px); }
+            75% { transform: translateX(-50%) translateY(5px); }
+        }
+
+        .warning-banner.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏭 SCADA HMI - Water Treatment Plant</h1>
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-dot green" id="systemStatus"></div>
+                <span>System: <span id="systemStatusText">OPERATIONAL</span></span>
+            </div>
+            <div class="status-item">
+                <div class="status-dot green" id="commStatus"></div>
+                <span>Comms: ONLINE</span>
+            </div>
+            <div class="status-item">
+                <span id="currentTime"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="warning-banner" id="emergencyBanner">
+        🚨 EMERGENCY SHUTDOWN ACTIVE 🚨
+    </div>
+
+    <div class="main-container">
+        <div class="pid-diagram">
+            <h2>Process & Instrumentation Diagram (P&ID)</h2>
+
+            <div class="process-area">
+                <!-- Tank System -->
+                <div class="equipment">
+                    <h3>TANK-001: Water Storage</h3>
+                    <div class="tank-visual">
+                        <div class="tank-level" id="tankLevel"></div>
+                        <div class="tank-label" id="tankLevelText">50%</div>
+                    </div>
+
+                    <div class="indicator">
+                        <div class="indicator-light" id="pumpLight"></div>
+                        <span>PUMP-001</span>
+                    </div>
+
+                    <div class="indicator">
+                        <div class="indicator-light" id="valveLight"></div>
+                        <span>VALVE-001 (<span id="valvePosition">50</span>%)</span>
+                    </div>
+
+                    <div class="control-panel">
+                        <button class="control-btn" onclick="controlAction('tank', 'start_pump')">START PUMP</button>
+                        <button class="control-btn danger" onclick="controlAction('tank', 'stop_pump')">STOP PUMP</button>
+                        <button class="control-btn" onclick="controlAction('tank', 'open_valve')">OPEN VALVE</button>
+                        <button class="control-btn" onclick="controlAction('tank', 'close_valve')">CLOSE VALVE</button>
+                    </div>
+                </div>
+
+                <!-- Pressure System -->
+                <div class="equipment">
+                    <h3>COMP-001: Air Compressor</h3>
+                    <div class="gauge">
+                        <div class="gauge-circle">
+                            <div class="gauge-value" id="pressureValue">80 PSI</div>
+                        </div>
+                        <div class="gauge-label">PRESSURE</div>
+                    </div>
+
+                    <div class="indicator">
+                        <div class="indicator-light" id="compressorLight"></div>
+                        <span>COMPRESSOR</span>
+                    </div>
+
+                    <div class="indicator">
+                        <div class="indicator-light" id="reliefValveLight"></div>
+                        <span>RELIEF VALVE</span>
+                    </div>
+
+                    <div class="control-panel">
+                        <button class="control-btn" onclick="controlAction('pressure', 'start_compressor')">START COMPRESSOR</button>
+                        <button class="control-btn danger" onclick="controlAction('pressure', 'stop_compressor')">STOP COMPRESSOR</button>
+                        <button class="control-btn danger" onclick="controlAction('pressure', 'open_relief')">OPEN RELIEF</button>
+                    </div>
+                </div>
+
+                <!-- Temperature System -->
+                <div class="equipment">
+                    <h3>REACTOR-001: Heat Exchanger</h3>
+                    <div class="gauge">
+                        <div class="gauge-circle">
+                            <div class="gauge-value" id="tempValue">20°C</div>
+                        </div>
+                        <div class="gauge-label">TEMPERATURE</div>
+                    </div>
+
+                    <div class="indicator">
+                        <div class="indicator-light" id="heaterLight"></div>
+                        <span>HEATER</span>
+                    </div>
+
+                    <div class="indicator">
+                        <div class="indicator-light" id="coolingLight"></div>
+                        <span>COOLING</span>
+                    </div>
+
+                    <div class="control-panel">
+                        <button class="control-btn" onclick="controlAction('temperature', 'heater_on')">HEATER ON</button>
+                        <button class="control-btn danger" onclick="controlAction('temperature', 'heater_off')">HEATER OFF</button>
+                        <button class="control-btn" onclick="controlAction('temperature', 'cooling_on')">COOLING ON</button>
+                        <button class="control-btn danger" onclick="controlAction('temperature', 'cooling_off')">COOLING OFF</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <!-- Alarm Panel -->
+            <div class="alarm-panel">
+                <h2>
+                    <span>⚠️ ACTIVE ALARMS</span>
+                    <span style="margin-left: auto;" id="alarmCount">0</span>
+                </h2>
+                <div id="alarmList">
+                    <p style="color: #0f0; text-align: center; padding: 20px;">No active alarms</p>
+                </div>
+            </div>
+
+            <!-- Statistics Panel -->
+            <div class="stats-panel">
+                <h2>System Statistics</h2>
+                <div class="stat-row">
+                    <span class="stat-label">Tank Level:</span>
+                    <span class="stat-value" id="statTankLevel">50.0%</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Pressure:</span>
+                    <span class="stat-value" id="statPressure">80.0 PSI</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Temperature:</span>
+                    <span class="stat-value" id="statTemp">20.0°C</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Pump Status:</span>
+                    <span class="stat-value" id="statPump">OFF</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Safety Status:</span>
+                    <span class="stat-value" id="statSafety">NORMAL</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Update process data every second
+        function updateProcessData() {
+            fetch('/api/process_data')
+                .then(response => response.json())
+                .then(data => {
+                    // Update tank
+                    const tankLevel = Math.round(data.tank.level);
+                    document.getElementById('tankLevel').style.height = tankLevel + '%';
+                    document.getElementById('tankLevelText').textContent = tankLevel + '%';
+                    document.getElementById('valvePosition').textContent = Math.round(data.tank.valve_position);
+                    document.getElementById('pumpLight').className = 'indicator-light ' + (data.tank.pump_running ? 'on' : 'off');
+                    document.getElementById('valveLight').className = 'indicator-light ' + (data.tank.valve_position > 50 ? 'on' : 'off');
+
+                    // Update pressure
+                    const pressure = Math.round(data.pressure.value);
+                    document.getElementById('pressureValue').textContent = pressure + ' PSI';
+                    document.getElementById('compressorLight').className = 'indicator-light ' + (data.pressure.compressor_running ? 'on' : 'off');
+                    document.getElementById('reliefValveLight').className = 'indicator-light ' + (data.pressure.relief_valve_open ? 'on' : 'off');
+
+                    // Update temperature
+                    const temp = Math.round(data.temperature.value);
+                    document.getElementById('tempValue').textContent = temp + '°C';
+                    document.getElementById('heaterLight').className = 'indicator-light ' + (data.temperature.heater_on ? 'on' : 'off');
+                    document.getElementById('coolingLight').className = 'indicator-light ' + (data.temperature.cooling_on ? 'on' : 'off');
+
+                    // Update stats panel
+                    document.getElementById('statTankLevel').textContent = tankLevel + '%';
+                    document.getElementById('statPressure').textContent = pressure + ' PSI';
+                    document.getElementById('statTemp').textContent = temp + '°C';
+                    document.getElementById('statPump').textContent = data.tank.pump_running ? 'ON' : 'OFF';
+
+                    // Check for emergency shutdown
+                    if (data.safety.shutdown_active) {
+                        document.getElementById('emergencyBanner').classList.add('show');
+                        document.getElementById('systemStatus').className = 'status-dot red';
+                        document.getElementById('systemStatusText').textContent = 'EMERGENCY';
+                        document.getElementById('statSafety').textContent = 'EMERGENCY SHUTDOWN';
+                        document.getElementById('statSafety').style.color = '#ff0000';
+                    } else {
+                        document.getElementById('emergencyBanner').classList.remove('show');
+                        document.getElementById('systemStatus').className = 'status-dot green';
+                        document.getElementById('systemStatusText').textContent = 'OPERATIONAL';
+                        document.getElementById('statSafety').textContent = 'NORMAL';
+                        document.getElementById('statSafety').style.color = '#00ff00';
+                    }
+
+                    // Color code gauges based on values
+                    if (data.tank.overflow) {
+                        document.getElementById('tankLevel').style.background = 'linear-gradient(0deg, #f00, #f80)';
+                    } else if (data.tank.low_level) {
+                        document.getElementById('tankLevel').style.background = 'linear-gradient(0deg, #ff0, #f80)';
+                    } else {
+                        document.getElementById('tankLevel').style.background = 'linear-gradient(0deg, #00f, #0ff)';
+                    }
+
+                    if (data.pressure.high_alarm) {
+                        document.getElementById('pressureValue').style.color = '#ff0000';
+                    } else if (data.pressure.low_alarm) {
+                        document.getElementById('pressureValue').style.color = '#ffff00';
+                    } else {
+                        document.getElementById('pressureValue').style.color = '#00ff00';
+                    }
+
+                    if (data.temperature.high_alarm) {
+                        document.getElementById('tempValue').style.color = '#ff0000';
+                    } else {
+                        document.getElementById('tempValue').style.color = '#00ff00';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching process data:', error);
+                    document.getElementById('commStatus').className = 'status-dot red';
+                });
+        }
+
+        // Update alarms
+        function updateAlarms() {
+            fetch('/api/alarms')
+                .then(response => response.json())
+                .then(alarms => {
+                    const alarmList = document.getElementById('alarmList');
+                    document.getElementById('alarmCount').textContent = alarms.length;
+
+                    if (alarms.length === 0) {
+                        alarmList.innerHTML = '<p style="color: #0f0; text-align: center; padding: 20px;">No active alarms</p>';
+                    } else {
+                        alarmList.innerHTML = alarms.map(alarm => {
+                            const severityClass = alarm.severity.toLowerCase();
+                            return `
+                                <div class="alarm-item ${severityClass}">
+                                    <div style="font-weight: bold; margin-bottom: 5px;">[${alarm.severity}] ${alarm.system}</div>
+                                    <div style="font-size: 14px;">${alarm.message}</div>
+                                    <div style="font-size: 12px; color: #aaa; margin-top: 5px;">${alarm.timestamp}</div>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                });
+        }
+
+        // Control action
+        function controlAction(system, action) {
+            fetch(`/api/control/${system}/${action}`, { method: 'POST' })
+                .then(response => response.json())
+                .then(result => {
+                    if (!result.success) {
+                        alert('Control action failed: ' + result.error);
+                    }
+                })
+                .catch(error => {
+                    alert('Control action failed: ' + error);
+                });
+        }
+
+        // Update clock
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString();
+        }
+
+        // Initialize
+        updateProcessData();
+        updateAlarms();
+        updateClock();
+
+        // Set intervals
+        setInterval(updateProcessData, 1000);  // 1 second
+        setInterval(updateAlarms, 2000);       // 2 seconds
+        setInterval(updateClock, 1000);        // 1 second
+    </script>
+</body>
+</html>

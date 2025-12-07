@@ -88,6 +88,15 @@ start_service "Historian" "historian.py" "historian.log"
 # Start Network Simulator
 start_service "NetworkSim" "network_simulator.py" "network.log"
 
+# Start Physical Process Simulator
+start_service "PhysicalProcess" "physical_process.py" "physical_process.log"
+
+# Start System Monitor (Web Dashboard)
+start_service "SystemMonitor" "system_monitor.py --web" "system_monitor.log"
+
+# Start HMI Server (Visual SCADA Interface)
+start_service "HMI-Server" "hmi_server.py" "hmi.log"
+
 echo ""
 echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
 echo -e "${GREEN}  All Services Started Successfully!${NC}"
@@ -99,6 +108,8 @@ echo -e "  PLC-2 (Pressure System):   ${YELLOW}http://localhost:5011${NC}  (engi
 echo -e "  PLC-3 (Temperature):       ${YELLOW}http://localhost:5012${NC}  (engineer/temp123)"
 echo -e "  PLC-4 (Safety/ESD):        ${YELLOW}http://localhost:5013${NC}  (safety_eng/safe123)"
 echo -e "  Historian:                 ${YELLOW}http://localhost:8888${NC}  (historian/data123)"
+echo -e "  System Monitor:            ${YELLOW}http://localhost:5999${NC}  (realtime dashboard)"
+echo -e "  HMI Interface:             ${YELLOW}http://localhost:8000${NC}  (SCADA visualization)"
 echo ""
 echo -e "${BLUE}Modbus TCP Endpoints:${NC}"
 echo -e "  PLC-1: ${YELLOW}localhost:5502${NC}"

