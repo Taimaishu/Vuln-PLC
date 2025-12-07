@@ -1,271 +1,348 @@
-# Vulnerable PLC - ICS/SCADA Security Training Lab
+# Vuln-PLC v2.0
+### The Complete ICS/SCADA Security Training Platform
 
-A comprehensive, intentionally vulnerable industrial control system environment for security training, penetration testing practice, and ICS/SCADA research. Features 4 PLCs, historian service, realistic network traffic, OSINT artifacts, and 200+ pages of documentation.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](docs/media/CONTRIBUTING.md)
 
-## ⚠️ WARNING
-
-**THIS IS AN INTENTIONALLY VULNERABLE APPLICATION**
-
-- **DO NOT** deploy on production networks
-- **DO NOT** expose to the internet
-- **ONLY** use in isolated lab environments
-- For authorized security testing and education only
-
-## Recent Updates
-
-### Major Enhancements (2024-12-07)
-- 🚀 **NEW**: Realistic PLC simulation engine with scan cycles and ladder logic
-- 🚀 **NEW**: Modbus intrusion detection system (IDS) with real-time alerts
-- 🚀 **NEW**: Siemens S7 protocol support (educational implementation)
-- 🚀 **NEW**: System monitoring dashboard (console + web interface)
-- 🚀 **NEW**: PCAP packet capture for forensics and replay analysis
-- 🚀 **NEW**: Physics-based industrial process simulator (tank/pressure/temperature)
-- 🚀 **NEW**: Complete Docker deployment with network segmentation
-- 🚀 **NEW**: Development roadmap for future enhancements
-- ✅ Fixed PLC-1 Modbus server sync feedback loop
-- ✅ Added full user management system (add/edit/delete users)
-- ✅ Added PLC-4 watchdog enable/disable controls
-- ✅ Optimized network traffic log (reduced from 1000 to 100 entries)
-- ✅ Comprehensive Blue Team training documentation
-
-## Features
-
-### Web Interface
-- **Login System** with default credentials
-- **Admin Portal** with system controls
-- **User Management** interface (full CRUD)
-- **System Logs** viewer
-- **PLC Control Dashboard**
-
-### Modbus TCP Server
-- Standard Modbus TCP protocol on port 5502
-- 100 coils (read/write)
-- 100 discrete inputs (read-only)
-- 100 holding registers (read/write)
-- 100 input registers (read-only)
-- Simulated sensor readings
-
-### System Components
-
-1. **PLC-1: Tank Control System**
-   - Web: http://localhost:5000 (admin/admin)
-   - Modbus: localhost:5502
-   - Vulnerabilities: SQL injection, command injection, XSS, SSTI, directory traversal
-
-2. **PLC-2: Pressure Control System**
-   - Web: http://localhost:5011 (engineer/plc2pass)
-   - Modbus: localhost:5503
-   - Vulnerabilities: Timing attacks, auth bypass, replay attacks, buffer overflow
-
-3. **PLC-3: Temperature Control System**
-   - Web: http://localhost:5012 (engineer/temp123)
-   - Modbus: localhost:5504
-   - Vulnerabilities: Insecure firmware upload, pickle deserialization, race conditions
-
-4. **PLC-4: Safety/Emergency Shutdown System**
-   - Web: http://localhost:5013 (safety_eng/safe123)
-   - Modbus: localhost:5505
-   - Vulnerabilities: Weak override code (1234), safety bypass, timing attacks
-
-5. **Historian Service**
-   - Web: http://localhost:8888 (historian/data123)
-   - Collects data from all PLCs every 5 seconds
-   - Vulnerabilities: SQL injection, time-series injection
-
-6. **Network Traffic Simulator**
-   - Generates realistic ICS traffic patterns
-   - HMI polling, historian queries, engineering access
-   - Simulates packet loss and misbehaving devices
-   - Automated safety incidents
-
-7. **OSINT Artifacts**
-   - Network diagrams with credentials
-   - Employee directory
-   - Meeting notes with security findings
-   - Shodan scan results
-   - PLC backup configurations
-
-8. **Advanced Features (NEW)**
-   - **PLC Simulation Engine**: Realistic scan cycles, ladder logic execution
-   - **Modbus IDS**: Real-time intrusion detection with alerts
-   - **S7 Protocol Server**: Siemens S7comm support (port 102)
-   - **System Monitor**: Centralized dashboard (console + web)
-
-### Network Architecture
-
-Based on Purdue Model:
-- **CorpNet**: 192.168.1.0/24 (Corporate network)
-- **OT Zone**: 192.168.100.0/24 (Operational Technology - PLCs, HMI)
-- **DMZ**: 192.168.50.0/24 (Historian, web portal)
-- **Firewall**: Intentionally misconfigured (ALLOW_ALL between zones)
-
-### Documentation (300+ pages)
-
-- **ARCHITECTURE.md** (30+ pages) - Complete system architecture
-- **OSINT_DISCOVERY_GUIDE.md** (40+ pages) - OSINT techniques
-- **ATTACK_SCENARIOS.md** (50+ pages) - Detailed attack walkthroughs
-- **DETECTION_PLAYBOOK.md** (45+ pages) - Defense strategies and IOCs
-- **EVASION_TECHNIQUES.md** (35+ pages) - Advanced evasion tactics
-- **ADVANCED_FEATURES.md** (50+ pages) - NEW: PLC engine, IDS, S7 protocol
-- **BLUE_TEAM_GUIDE.md** (40+ pages) - NEW: Defense and incident response
-- **FINAL_SUMMARY.md** (10+ pages) - Quick reference guide
+> **A comprehensive, intentionally vulnerable industrial control system environment for security training, penetration testing practice, and ICS/SCADA research.**
 
 ---
 
-## Quick Start
-
-### Installation
-
-First, install the system-wide command:
+## ⚡ Quick Start
 
 ```bash
-cd /home/taimaishu/vulnerable_plc
-./install.sh
+# Clone the repository
+git clone https://github.com/Taimaishu/Vuln-PLC.git
+cd Vuln-PLC
+
+# Option 1: Local Installation
+./scripts/install.sh
+./scripts/start_all.sh
+
+# Option 2: Docker (Recommended)
+docker-compose up -d
+
+# Access the HMI Dashboard
+firefox http://localhost:8000
 ```
 
-This creates a `vuln-plc` command you can run from anywhere.
-
-### Starting the Lab
-
+**Try your first attack:**
 ```bash
-vuln-plc start
-```
+# Force tank overflow
+sudo modbus 127.0.0.1:5502 write 0 1   # Pump ON
+sudo modbus 127.0.0.1:5502 write 1 0   # Valve CLOSED
 
-This starts all 4 PLCs, the Historian service, and the network traffic simulator.
-
-### Managing Services
-
-```bash
-vuln-plc status      # Check which services are running
-vuln-plc stop        # Stop all services
-vuln-plc restart     # Restart everything
-vuln-plc logs        # Monitor all logs in real-time
-vuln-plc help        # Show help
-```
-
-### Alternative: Manual Start
-
-```bash
-cd /home/taimaishu/vulnerable_plc
-./start_all.sh       # Start all services
-./status.sh          # Check status
-./stop_all.sh        # Stop all services
-```
-
-## Access Points
-
-### Web Interfaces
-- **PLC-1 (Tank Control):** http://localhost:5000 (admin/admin)
-- **PLC-2 (Pressure System):** http://localhost:5011 (engineer/plc2pass)
-- **PLC-3 (Temperature Control):** http://localhost:5012 (engineer/temp123)
-- **PLC-4 (Safety/ESD):** http://localhost:5013 (safety_eng/safe123)
-- **Historian:** http://localhost:8888 (historian/data123)
-
-### Modbus TCP Endpoints
-- **PLC-1:** localhost:5502
-- **PLC-2:** localhost:5503
-- **PLC-3:** localhost:5504
-- **PLC-4:** localhost:5505
-
-### All Default Credentials
-See `FINAL_SUMMARY.md` for complete credential list
-
----
-
-## Security Testing Guide
-
-See comprehensive testing guides in the documentation files, including:
-- SQL Injection techniques
-- Command Injection exploits
-- Modbus manipulation
-- Network reconnaissance
-- OSINT discovery
-- IDS evasion techniques
-
-### Advanced Testing (NEW)
-
-**PLC Engine Testing:**
-```python
-from plc_engine import PLCEngine, Instruction, InstructionType
-
-# Create PLC with 50ms scan cycle
-engine = PLCEngine('plc1', scan_time_ms=50)
-
-# Load ladder logic
-program = [
-    Instruction(InstructionType.CMP, ['tank_level', '<', '30']),
-    Instruction(InstructionType.OUT, ['pump_status']),
-]
-engine.load_program(program)
-engine.start()
-```
-
-**Modbus IDS Testing:**
-```python
-from modbus_ids import ModbusIDS
-
-# Start IDS with monitoring
-ids = ModbusIDS()
-ids.add_authorized_writer('192.168.100.20')
-ids.add_protected_address(10)
-ids.start()
-
-# Generate test attacks - observe alerts!
-```
-
-**System Monitoring:**
-```bash
-# Console dashboard
-python3 system_monitor.py
-
-# Web dashboard (recommended)
-python3 system_monitor.py --web
-# Access at http://localhost:5999
-```
-
-**S7 Protocol Testing:**
-```python
-import snap7
-
-# Connect to S7 server (requires root for port 102)
-plc = snap7.client.Client()
-plc.connect('localhost', 0, 1, 102)
-
-# Read/write data blocks
-data = plc.db_read(1, 0, 10)
-plc.db_write(1, 0, bytearray([0x01, 0x02]))
-
-# VULNERABILITY: Stop PLC without auth!
-plc.plc_stop()
+# Watch the consequences on HMI: http://localhost:8000
 ```
 
 ---
 
-## Legal Notice
+## 🌟 What's New in v2.0?
 
-This tool is provided for **educational and authorized security testing purposes only**.
+### 🎨 Visual SCADA HMI Interface
+Real-time P&ID dashboard showing industrial processes:
+- Animated tank levels, pressure gauges, temperature displays
+- Color-coded alarms (green → yellow → red)
+- Live equipment status indicators
+- Emergency shutdown warnings
+- **See attacks happen visually!**
 
-You must:
-- Only use in isolated lab environments
-- Have explicit authorization before testing
-- Not use for malicious purposes
-- Not expose to production networks
-- Comply with all applicable laws
+### ⚗️ Physics-Based Process Simulation
+Not just fake numbers - actual industrial physics:
+- Tank overflow with pump cavitation
+- Pressure vessel rupture
+- Thermal runaway scenarios
+- Safety interlocks and emergency shutdown
 
-The authors assume no liability for misuse of this software.
+### 📦 PCAP Capture & Forensics
+Built-in Modbus IDS with packet capture:
+- Real-time intrusion detection
+- Automatic PCAP file rotation
+- Wireshark-ready for analysis
+- Timeline reconstruction for incident response
+
+### 🐳 One-Command Docker Deployment
+```bash
+docker-compose up -d
+```
+That's it. 8 services, proper network segmentation, ready in seconds.
 
 ---
 
-## Credits
+## 🎯 Features
 
-Created for security education and ICS/SCADA security awareness training.
+### 🔴 Red Team / Penetration Testing
+- **4 Vulnerable PLCs** with realistic exploits
+- **Modbus TCP** protocol manipulation
+- **Siemens S7** protocol support
+- **Web exploits**: SQL injection, command injection, XSS
+- **Authentication bypasses**
+- **Session hijacking**
+- **Privilege escalation paths**
 
-**Technologies Used:**
-- Python 3.9
-- Flask web framework
-- PyModbus library
-- SQLite database
+### 🔵 Blue Team / Defenders
+- **Modbus IDS** with signature & anomaly detection
+- **PCAP capture** for forensics training
+- **System Monitor** dashboard
+- **Detection playbooks** with IOCs
+- **Incident response exercises**
+
+### 🎓 Educators / Trainers
+- **Visual HMI** for engaging demonstrations
+- **400+ pages documentation**
+- **Step-by-step attack scenarios**
+- **Blue team defense guides**
+- **CTF-ready challenges**
 
 ---
 
-**Remember: Use responsibly and only in authorized environments.**
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────┐
+│  DMZ (192.168.50.0/24)                  │
+│  ├─ HMI Interface (Visual SCADA)        │
+│  ├─ System Monitor (Dashboard)          │
+│  └─ Historian (Data Collection)         │
+└─────────────┬───────────────────────────┘
+              │
+┌─────────────▼───────────────────────────┐
+│  OT Network (192.168.100.0/24)          │
+│  ├─ PLC-1: Tank Control                 │
+│  ├─ PLC-2: Pressure System              │
+│  ├─ PLC-3: Temperature Control          │
+│  ├─ PLC-4: Safety/ESD                   │
+│  ├─ Modbus IDS (Monitoring)             │
+│  └─ Physical Process Simulator          │
+└─────────────────────────────────────────┘
+```
+
+**Tech Stack:**
+- Python 3.9 + Flask
+- PyModbus (Modbus TCP)
+- Python-snap7 (S7 protocol)
+- Scapy (Packet capture)
+- Docker + Docker Compose
+
+---
+
+## 📚 Documentation
+
+### Getting Started
+- **[Quick Start Guide](docs/getting-started/QUICK_START.md)** - Get running in 5 minutes
+- **[Installation Guide](docs/getting-started/INSTALL_GUIDE.md)** - Detailed setup
+- **[Docker Deployment](docs/getting-started/DOCKER_DEPLOYMENT.md)** - Container setup
+
+### Attack Documentation
+- **[Attack Scenarios](docs/attack/ATTACK_SCENARIOS.md)** - Step-by-step exploits
+- **[Evasion Techniques](docs/attack/EVASION_TECHNIQUES.md)** - Advanced tactics
+- **[Modbus CLI Reference](docs/attack/MODBUS_CLI_REFERENCE.md)** - Command syntax
+- **[Privilege Escalation](docs/attack/PRIVILEGE_ESCALATION.md)** - Exploit chains
+
+### Defense Documentation
+- **[Blue Team Guide](docs/defense/BLUE_TEAM_GUIDE.md)** - Defense strategies
+- **[Detection Playbook](docs/defense/DETECTION_PLAYBOOK.md)** - IOCs & alerts
+- **[PCAP Analysis](docs/defense/)** - Forensics exercises
+
+### Architecture & Advanced
+- **[Architecture Overview](docs/architecture/ARCHITECTURE.md)** - System design
+- **[Advanced Features](docs/architecture/ADVANCED_FEATURES.md)** - PLC engine, IDS
+- **[Development Roadmap](docs/architecture/ROADMAP.md)** - Future plans
+
+---
+
+## 🚀 Usage
+
+### Access Interfaces
+
+**Main Dashboards:**
+- **HMI Dashboard:** http://localhost:8000 🎨
+- **System Monitor:** http://localhost:5999 📊
+- **Historian:** http://localhost:8888 (historian/data123) 📈
+
+**PLC Web Interfaces:**
+- **PLC-1 (Tank):** http://localhost:5000 (admin/admin)
+- **PLC-2 (Pressure):** http://localhost:5011 (engineer/plc2pass)
+- **PLC-3 (Temperature):** http://localhost:5012 (engineer/temp123)
+- **PLC-4 (Safety):** http://localhost:5013 (safety_eng/safe123)
+
+**Modbus TCP Endpoints:**
+- PLC-1: `127.0.0.1:5502`
+- PLC-2: `127.0.0.1:5503`
+- PLC-3: `127.0.0.1:5504`
+- PLC-4: `127.0.0.1:5505`
+
+### Example Attacks
+
+**Tank Overflow (Visual Impact):**
+```bash
+# Open HMI: http://localhost:8000
+sudo modbus 127.0.0.1:5502 write 0 1   # Force pump ON
+sudo modbus 127.0.0.1:5502 write 1 0   # Force valve CLOSED
+# Watch tank overflow in real-time!
+```
+
+**Pressure Spike:**
+```bash
+sudo modbus 127.0.0.1:5503 write 0 1   # Compressor ON
+sudo modbus 127.0.0.1:5503 write 1 0   # Relief valve CLOSED
+# Pressure rises until rupture
+```
+
+**SQL Injection:**
+```bash
+curl -X POST http://localhost:5000/login \
+  -d "username=admin' OR '1'='1&password=x"
+```
+
+**More scenarios:** See [docs/attack/ATTACK_SCENARIOS.md](docs/attack/ATTACK_SCENARIOS.md)
+
+---
+
+## ⚙️ Installation
+
+### Requirements
+- Python 3.9+
+- pip
+- (Optional) Docker + Docker Compose
+
+### Local Installation
+```bash
+git clone https://github.com/Taimaishu/Vuln-PLC.git
+cd Vuln-PLC
+
+# Install dependencies
+./scripts/install.sh
+
+# Start all services
+./scripts/start_all.sh
+
+# Stop all services
+./scripts/stop_all.sh
+
+# Check status
+./scripts/status.sh
+```
+
+### Docker Installation
+```bash
+# Basic deployment (4 PLCs + Historian)
+docker-compose up -d
+
+# Full deployment (includes IDS, Monitor, Network Sim)
+docker-compose --profile full up -d
+
+# Check status
+docker-compose ps
+
+# View logs
+docker-compose logs -f
+
+# Stop
+docker-compose down
+```
+
+---
+
+## 🗺️ Roadmap
+
+### Q1 2025: Additional Protocols
+- ✨ EtherNet/IP (CIP) - Allen-Bradley/Rockwell
+- ✨ DNP3 - Power utility SCADA
+- ✨ OPC UA - Industry 4.0
+
+### Q2 2025: Enhanced Realism
+- 📈 HMI trend charts (historian views)
+- 🖥️ VNC-based Windows HMI
+- 🔧 Vendor-specific CVE emulation
+
+### Q3 2025: Advanced Features
+- 🤖 ML-based anomaly detection
+- 🔁 Automated attack scenarios
+- 🍯 Honeypot capabilities
+
+See **[ROADMAP.md](docs/architecture/ROADMAP.md)** for complete timeline.
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Areas of interest:
+
+**High Priority:**
+- EtherNet/IP (CIP) protocol implementation
+- HMI trend charts and historian integration
+- ML-based IDS enhancements
+
+**Documentation:**
+- Video tutorials
+- CTF challenges
+- Training materials
+
+See **CONTRIBUTING.md** for guidelines.
+
+---
+
+## ⚠️ Security Notice
+
+**THIS IS INTENTIONALLY VULNERABLE SOFTWARE FOR EDUCATIONAL PURPOSES.**
+
+**DO:**
+- ✅ Use in isolated lab environments
+- ✅ Practice authorized penetration testing
+- ✅ Learn ICS security principles
+- ✅ Develop defensive capabilities
+
+**DON'T:**
+- ❌ Deploy on production networks
+- ❌ Expose to the internet
+- ❌ Use for malicious purposes
+- ❌ Test on systems you don't own
+
+**Use responsibly. Get authorization. Follow the law.**
+
+---
+
+## 📜 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- ICS security community
+- Open-source contributors
+- Security researchers worldwide
+
+Special thanks to all who provided feedback and feature requests.
+
+---
+
+## 📞 Contact & Support
+
+- **Issues:** [GitHub Issues](https://github.com/Taimaishu/Vuln-PLC/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/Taimaishu/Vuln-PLC/discussions)
+- **Pull Requests:** Always welcome!
+
+---
+
+## 🔗 Related Projects
+
+- **[Conpot](https://github.com/mushorg/conpot)** - ICS honeypot
+- **[SCADABR](https://github.com/SCADA-LTS/Scada-LTS)** - Open source SCADA
+- **[PLCSimulator](https://github.com/automaticserver/plc4j)** - PLC communication library
+
+---
+
+## ⭐ Star History
+
+If you find Vuln-PLC useful, please consider starring the repository!
+
+---
+
+**Built with ❤️ for the ICS security community**
+
+*Last Updated: 2024-12-07*
+*Version: 2.0.0*

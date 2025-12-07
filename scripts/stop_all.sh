@@ -3,7 +3,8 @@
 # Stops all running PLCs, Historian, and Network Simulator
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT"
 
 # Colors for output
 RED='\033[0;31m'
@@ -73,6 +74,9 @@ echo -e "${BLUE}═════════════════════�
 
 stop_service "Historian"
 stop_service "NetworkSim"
+stop_service "PhysicalProcess"
+stop_service "SystemMonitor"
+stop_service "HMI-Server"
 
 # Also kill any remaining Python processes that might be from our services
 echo ""
@@ -82,6 +86,9 @@ pkill -f "app.py" 2>/dev/null
 pkill -f "plc.*_.*\.py" 2>/dev/null
 pkill -f "historian.py" 2>/dev/null
 pkill -f "network_simulator.py" 2>/dev/null
+pkill -f "physical_process.py" 2>/dev/null
+pkill -f "system_monitor.py" 2>/dev/null
+pkill -f "hmi_server.py" 2>/dev/null
 
 echo ""
 echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"

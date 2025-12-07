@@ -3,7 +3,8 @@
 # Starts all PLCs, Historian, and Network Simulator
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT"
 
 # Colors for output
 RED='\033[0;31m'
@@ -62,20 +63,20 @@ echo -e "${BLUE}  Starting PLC Systems${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
 
 # Start PLC-1 (Tank Control)
-start_service "PLC1-Modbus" "modbus_server.py" "plc1_modbus.log"
-start_service "PLC1-Web" "app.py" "plc1_web.log"
+start_service "PLC1-Modbus" "core/modbus_server.py" "plc1_modbus.log"
+start_service "PLC1-Web" "core/app.py" "plc1_web.log"
 
 # Start PLC-2 (Pressure Control)
-start_service "PLC2-Modbus" "modbus_server2.py" "plc2_modbus.log"
-start_service "PLC2-Web" "plc2_pressure.py" "plc2_web.log"
+start_service "PLC2-Modbus" "core/modbus_server2.py" "plc2_modbus.log"
+start_service "PLC2-Web" "core/plc2_pressure.py" "plc2_web.log"
 
 # Start PLC-3 (Temperature Control)
-start_service "PLC3-Modbus" "modbus_server3.py" "plc3_modbus.log"
-start_service "PLC3-Web" "plc3_temperature.py" "plc3_web.log"
+start_service "PLC3-Modbus" "core/modbus_server3.py" "plc3_modbus.log"
+start_service "PLC3-Web" "core/plc3_temperature.py" "plc3_web.log"
 
 # Start PLC-4 (Safety/ESD)
-start_service "PLC4-Modbus" "modbus_server4.py" "plc4_modbus.log"
-start_service "PLC4-Web" "plc4_safety.py" "plc4_web.log"
+start_service "PLC4-Modbus" "core/modbus_server4.py" "plc4_modbus.log"
+start_service "PLC4-Web" "core/plc4_safety.py" "plc4_web.log"
 
 echo ""
 echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
@@ -83,19 +84,19 @@ echo -e "${BLUE}  Starting Infrastructure Services${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
 
 # Start Historian
-start_service "Historian" "historian.py" "historian.log"
+start_service "Historian" "core/historian.py" "historian.log"
 
 # Start Network Simulator
-start_service "NetworkSim" "network_simulator.py" "network.log"
+start_service "NetworkSim" "monitoring/network_simulator.py" "network.log"
 
 # Start Physical Process Simulator
-start_service "PhysicalProcess" "physical_process.py" "physical_process.log"
+start_service "PhysicalProcess" "core/physical_process.py" "physical_process.log"
 
 # Start System Monitor (Web Dashboard)
-start_service "SystemMonitor" "system_monitor.py --web" "system_monitor.log"
+start_service "SystemMonitor" "monitoring/system_monitor.py --web" "system_monitor.log"
 
 # Start HMI Server (Visual SCADA Interface)
-start_service "HMI-Server" "hmi_server.py" "hmi.log"
+start_service "HMI-Server" "core/hmi_server.py" "hmi.log"
 
 echo ""
 echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
