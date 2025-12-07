@@ -1,20 +1,246 @@
 version: '3.8'
 
+# Vulnerable PLC - Complete ICS/SCADA Training Environment
+# Includes: 4 PLCs, Historian, Modbus IDS, System Monitor, Network Simulator
+
 services:
-  vulnerable-plc:
+  # =============================================================================
+  # PLC-1: Tank Control System (OT Network)
+  # =============================================================================
+  plc1:
     build: .
-    container_name: vulnerable_plc
+    container_name: vuln-plc1
+    hostname: plc1
+    command: python app.py
     ports:
-      - "5000:5000"  # Web interface
-      - "5502:5502"  # Modbus TCP
+      - "5000:5000"   # Web interface
+      - "5502:5502"   # Modbus TCP
     volumes:
-      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./pcaps:/app/pcaps
+      - plc1_state:/tmp
     environment:
       - FLASK_ENV=development
-    restart: unless-stopped
+      - PLC_ID=plc1
+      - PLC_NAME=Tank Control System
     networks:
-      - plc_network
+      ot_network:
+        ipv4_address: 192.168.100.10
+    restart: unless-stopped
 
+  # =============================================================================
+  # PLC-2: Pressure Control System (OT Network)
+  # =============================================================================
+  plc2:
+    build: .
+    container_name: vuln-plc2
+    hostname: plc2
+    command: python plc2_pressure.py
+    ports:
+      - "5011:5011"   # Web interface
+      - "5503:5503"   # Modbus TCP
+    volumes:
+      - ./logs:/app/logs
+      - ./pcaps:/app/pcaps
+      - plc2_state:/tmp
+    environment:
+      - FLASK_ENV=development
+      - PLC_ID=plc2
+      - PLC_NAME=Pressure Control System
+    networks:
+      ot_network:
+        ipv4_address: 192.168.100.11
+    restart: unless-stopped
+
+  # =============================================================================
+  # PLC-3: Temperature Control System (OT Network)
+  # =============================================================================
+  plc3:
+    build: .
+    container_name: vuln-plc3
+    hostname: plc3
+    command: python plc3_temperature.py
+    ports:
+      - "5012:5012"   # Web interface
+      - "5504:5504"   # Modbus TCP
+    volumes:
+      - ./logs:/app/logs
+      - ./pcaps:/app/pcaps
+      - plc3_state:/tmp
+    environment:
+      - FLASK_ENV=development
+      - PLC_ID=plc3
+      - PLC_NAME=Temperature Control System
+    networks:
+      ot_network:
+        ipv4_address: 192.168.100.12
+    restart: unless-stopped
+
+  # =============================================================================
+  # PLC-4: Safety/Emergency Shutdown System (OT Network)
+  # =============================================================================
+  plc4:
+    build: .
+    container_name: vuln-plc4
+    hostname: plc4
+    command: python plc4_safety.py
+    ports:
+      - "5013:5013"   # Web interface
+      - "5505:5505"   # Modbus TCP
+    volumes:
+      - ./logs:/app/logs
+      - ./pcaps:/app/pcaps
+      - plc4_state:/tmp
+    environment:
+      - FLASK_ENV=development
+      - PLC_ID=plc4
+      - PLC_NAME=Safety System
+    networks:
+      ot_network:
+        ipv4_address: 192.168.100.13
+    restart: unless-stopped
+
+  # =============================================================================
+  # Historian Service (DMZ Network)
+  # =============================================================================
+  historian:
+    build: .
+    container_name: vuln-historian
+    hostname: historian
+    command: python historian.py
+    ports:
+      - "8888:8888"   # Web interface
+    volumes:
+      - ./logs:/app/logs
+      - historian_db:/app/data
+    environment:
+      - FLASK_ENV=development
+    networks:
+      dmz_network:
+        ipv4_address: 192.168.50.10
+      ot_network:
+        ipv4_address: 192.168.100.20
+    restart: unless-stopped
+
+  # =============================================================================
+  # Modbus IDS (Monitoring Network)
+  # =============================================================================
+  modbus_ids:
+    build: .
+    container_name: vuln-modbus-ids
+    hostname: modbus-ids
+    command: python modbus_ids.py --monitor
+    volumes:
+      - ./logs:/app/logs
+      - ./pcaps:/app/pcaps
+      - ids_state:/tmp
+    environment:
+      - IDS_MODE=monitor
+      - CAPTURE_PCAP=true
+    networks:
+      ot_network:
+        ipv4_address: 192.168.100.30
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    restart: unless-stopped
+    profiles:
+      - full
+
+  # =============================================================================
+  # System Monitor Dashboard (Web Interface)
+  # =============================================================================
+  system_monitor:
+    build: .
+    container_name: vuln-system-monitor
+    hostname: system-monitor
+    command: python system_monitor.py --web
+    ports:
+      - "5999:5999"   # Web dashboard
+    volumes:
+      - ./logs:/app/logs
+      - monitor_state:/tmp
+    environment:
+      - MONITOR_MODE=web
+    networks:
+      dmz_network:
+        ipv4_address: 192.168.50.20
+      ot_network:
+        ipv4_address: 192.168.100.40
+    restart: unless-stopped
+
+  # =============================================================================
+  # Network Traffic Simulator (Optional - use with --profile full)
+  # =============================================================================
+  network_simulator:
+    build: .
+    container_name: vuln-network-sim
+    hostname: network-sim
+    command: python network_simulator.py
+    volumes:
+      - ./logs:/app/logs
+    environment:
+      - SIM_MODE=realistic
+    networks:
+      ot_network:
+        ipv4_address: 192.168.100.50
+    restart: unless-stopped
+    profiles:
+      - full
+
+  # =============================================================================
+  # S7 Protocol Server (Optional - use with --profile full)
+  # Requires privileged mode for port 102
+  # =============================================================================
+  s7_server:
+    build: .
+    container_name: vuln-s7-server
+    hostname: s7-server
+    command: python s7_server.py
+    ports:
+      - "102:102"     # S7 Protocol (requires root)
+    volumes:
+      - ./logs:/app/logs
+      - s7_state:/tmp
+    environment:
+      - S7_MODE=educational
+    networks:
+      ot_network:
+        ipv4_address: 192.168.100.60
+    privileged: true
+    restart: unless-stopped
+    profiles:
+      - full
+
+# =============================================================================
+# Network Definitions (Purdue Model)
+# =============================================================================
 networks:
-  plc_network:
+  # OT Network (Operational Technology Zone - Level 0-1)
+  ot_network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.100.0/24
+          gateway: 192.168.100.1
+
+  # DMZ Network (Industrial DMZ - Level 3.5)
+  dmz_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.50.0/24
+          gateway: 192.168.50.1
+
+# =============================================================================
+# Persistent Volumes
+# =============================================================================
+volumes:
+  plc1_state:
+  plc2_state:
+  plc3_state:
+  plc4_state:
+  historian_db:
+  ids_state:
+  monitor_state:
+  s7_state:

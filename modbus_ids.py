@@ -15,11 +15,21 @@ Detection capabilities:
 import time
 import threading
 import logging
+import os
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Optional
 from datetime import datetime
 import shared_state
+
+# PCAP capture support
+try:
+    from scapy.all import sniff, wrpcap, TCP, IP, Raw
+    from scapy.layers.inet import Ether
+    SCAPY_AVAILABLE = True
+except ImportError:
+    SCAPY_AVAILABLE = False
+    logging.warning("Scapy not available - PCAP capture disabled. Install with: pip install scapy")
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -75,7 +85,7 @@ class ModbusIDS:
         16,  # Write Multiple Registers
     }
 
-    def __init__(self):
+    def __init__(self, pcap_dir: str = '/app/pcaps', enable_pcap: bool = True):
         self.enabled = True
         self.alerts: deque = deque(maxlen=1000)  # Keep last 1000 alerts
 
@@ -100,6 +110,26 @@ class ModbusIDS:
         self.running = False
         self.thread = None
 
+        # PCAP capture configuration
+        self.pcap_enabled = enable_pcap and SCAPY_AVAILABLE
+        self.pcap_dir = pcap_dir
+        self.packet_buffer = []
+        self.capture_thread = None
+        self.capture_running = False
+        self.current_pcap_file = None
+        self.packets_captured = 0
+        self.pcap_rotation_size = 100 * 1024 * 1024  # 100MB
+        self.pcap_rotation_interval = 3600  # 1 hour
+        self.last_pcap_rotation = time.time()
+
+        # Create PCAP directory
+        if self.pcap_enabled:
+            os.makedirs(pcap_dir, exist_ok=True)
+            log.info(f"[Modbus IDS] PCAP capture enabled, saving to {pcap_dir}")
+        else:
+            if not SCAPY_AVAILABLE:
+                log.warning("[Modbus IDS] PCAP capture disabled - scapy not available")
+
         shared_state.init_state()
 
     def start(self):
@@ -110,6 +140,11 @@ class ModbusIDS:
         self.running = True
         self.thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self.thread.start()
+
+        # Start PCAP capture
+        if self.pcap_enabled:
+            self.start_packet_capture()
+
         log.info("[Modbus IDS] Started monitoring")
 
     def stop(self):
@@ -117,6 +152,11 @@ class ModbusIDS:
         self.running = False
         if self.thread:
             self.thread.join(timeout=2.0)
+
+        # Stop PCAP capture
+        if self.pcap_enabled:
+            self.stop_packet_capture()
+
         log.info("[Modbus IDS] Stopped monitoring")
 
     def analyze_event(self, event: ModbusEvent) -> List[Alert]:
@@ -377,6 +417,157 @@ class ModbusIDS:
         """Mark an address as protected"""
         self.protected_addresses.add(address)
         log.info(f"[Modbus IDS] Protected address: {address}")
+
+    # =========================================================================
+    # PCAP Capture Methods
+    # =========================================================================
+
+    def start_packet_capture(self, interface: str = 'any'):
+        """Start capturing Modbus TCP packets"""
+        if not self.pcap_enabled:
+            return
+
+        if self.capture_running:
+            log.warning("[PCAP] Capture already running")
+            return
+
+        self.capture_running = True
+        self.current_pcap_file = self._get_pcap_filename()
+
+        # Start capture thread
+        self.capture_thread = threading.Thread(
+            target=self._capture_loop,
+            args=(interface,),
+            daemon=True
+        )
+        self.capture_thread.start()
+
+        log.info(f"[PCAP] Started packet capture on {interface}, writing to {self.current_pcap_file}")
+
+    def stop_packet_capture(self):
+        """Stop packet capture and save remaining packets"""
+        if not self.capture_running:
+            return
+
+        self.capture_running = False
+
+        # Wait for capture thread to finish
+        if self.capture_thread:
+            self.capture_thread.join(timeout=5.0)
+
+        # Save any remaining packets
+        if self.packet_buffer:
+            self._save_pcap()
+
+        log.info(f"[PCAP] Stopped packet capture. Total packets: {self.packets_captured}")
+
+    def _capture_loop(self, interface: str):
+        """Main packet capture loop"""
+        try:
+            # Capture filter for Modbus TCP (port 502)
+            filter_str = "tcp port 502"
+
+            # Start sniffing
+            sniff(
+                iface=interface,
+                filter=filter_str,
+                prn=self._packet_handler,
+                store=False,
+                stop_filter=lambda p: not self.capture_running
+            )
+
+        except Exception as e:
+            log.error(f"[PCAP] Capture error: {e}")
+            self.capture_running = False
+
+    def _packet_handler(self, packet):
+        """Handle captured packet"""
+        try:
+            # Add to buffer
+            self.packet_buffer.append(packet)
+            self.packets_captured += 1
+
+            # Check if we need to save/rotate
+            if len(self.packet_buffer) >= 1000:  # Save every 1000 packets
+                self._save_pcap()
+
+            # Check for rotation
+            if self._should_rotate_pcap():
+                self._rotate_pcap()
+
+        except Exception as e:
+            log.error(f"[PCAP] Packet handler error: {e}")
+
+    def _save_pcap(self):
+        """Save packet buffer to PCAP file"""
+        if not self.packet_buffer:
+            return
+
+        try:
+            # Append to current PCAP file
+            wrpcap(self.current_pcap_file, self.packet_buffer, append=True)
+            log.debug(f"[PCAP] Saved {len(self.packet_buffer)} packets to {self.current_pcap_file}")
+
+            # Clear buffer
+            self.packet_buffer = []
+
+        except Exception as e:
+            log.error(f"[PCAP] Save error: {e}")
+
+    def _should_rotate_pcap(self) -> bool:
+        """Check if PCAP file should be rotated"""
+        # Time-based rotation
+        if time.time() - self.last_pcap_rotation >= self.pcap_rotation_interval:
+            return True
+
+        # Size-based rotation
+        if self.current_pcap_file and os.path.exists(self.current_pcap_file):
+            file_size = os.path.getsize(self.current_pcap_file)
+            if file_size >= self.pcap_rotation_size:
+                return True
+
+        return False
+
+    def _rotate_pcap(self):
+        """Rotate PCAP file"""
+        # Save current buffer
+        if self.packet_buffer:
+            self._save_pcap()
+
+        old_file = self.current_pcap_file
+        log.info(f"[PCAP] Rotating PCAP file: {old_file}")
+
+        # Create new file
+        self.current_pcap_file = self._get_pcap_filename()
+        self.last_pcap_rotation = time.time()
+
+        log.info(f"[PCAP] New PCAP file: {self.current_pcap_file}")
+
+    def _get_pcap_filename(self) -> str:
+        """Generate PCAP filename with timestamp"""
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"modbus_{timestamp}.pcap"
+        return os.path.join(self.pcap_dir, filename)
+
+    def get_pcap_stats(self) -> Dict:
+        """Get PCAP capture statistics"""
+        stats = {
+            'enabled': self.pcap_enabled,
+            'running': self.capture_running,
+            'packets_captured': self.packets_captured,
+            'current_file': self.current_pcap_file,
+            'buffer_size': len(self.packet_buffer)
+        }
+
+        # Get directory stats
+        if self.pcap_enabled and os.path.exists(self.pcap_dir):
+            pcap_files = [f for f in os.listdir(self.pcap_dir) if f.endswith('.pcap')]
+            total_size = sum(os.path.getsize(os.path.join(self.pcap_dir, f)) for f in pcap_files)
+
+            stats['total_files'] = len(pcap_files)
+            stats['total_size_mb'] = total_size / (1024 * 1024)
+
+        return stats
 
 
 # Example usage and testing

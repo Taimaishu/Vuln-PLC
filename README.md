@@ -18,6 +18,10 @@ A comprehensive, intentionally vulnerable industrial control system environment 
 - 🚀 **NEW**: Modbus intrusion detection system (IDS) with real-time alerts
 - 🚀 **NEW**: Siemens S7 protocol support (educational implementation)
 - 🚀 **NEW**: System monitoring dashboard (console + web interface)
+- 🚀 **NEW**: PCAP packet capture for forensics and replay analysis
+- 🚀 **NEW**: Physics-based industrial process simulator (tank/pressure/temperature)
+- 🚀 **NEW**: Complete Docker deployment with network segmentation
+- 🚀 **NEW**: Development roadmap for future enhancements
 - ✅ Fixed PLC-1 Modbus server sync feedback loop
 - ✅ Added full user management system (add/edit/delete users)
 - ✅ Added PLC-4 watchdog enable/disable controls
