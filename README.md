@@ -16,12 +16,9 @@
 git clone https://github.com/Taimaishu/Vuln-PLC.git
 cd Vuln-PLC
 
-# Option 1: Local Installation
+# Install and start all services
 ./scripts/install.sh
 ./scripts/start_all.sh
-
-# Option 2: Docker (Recommended)
-docker-compose up -d
 
 # Access the HMI Dashboard
 firefox http://localhost:8000
@@ -35,6 +32,8 @@ sudo modbus 127.0.0.1:5502 write 1 0   # Valve CLOSED
 
 # Watch the consequences on HMI: http://localhost:8000
 ```
+
+> **Note:** For Docker deployment, see [Docker Installation](#docker-installation) section below.
 
 ---
 
@@ -62,11 +61,9 @@ Built-in Modbus IDS with packet capture:
 - Wireshark-ready for analysis
 - Timeline reconstruction for incident response
 
-### 🐳 One-Command Docker Deployment
-```bash
-docker-compose up -d
-```
-That's it. 8 services, proper network segmentation, ready in seconds.
+### 🐳 Docker Deployment Available
+Full Docker deployment with 8 services and proper network segmentation.
+See [Docker Installation](#docker-installation) section for setup instructions.
 
 ---
 
@@ -203,9 +200,8 @@ curl -X POST http://localhost:5000/login \
 ## ⚙️ Installation
 
 ### Requirements
-- Python 3.9+
-- pip
-- (Optional) Docker + Docker Compose
+- **Required:** Python 3.9+, pip
+- **Optional:** Docker + Docker Compose (for containerized deployment)
 
 ### Local Installation
 ```bash
@@ -226,6 +222,18 @@ cd Vuln-PLC
 ```
 
 ### Docker Installation
+
+**Prerequisites:**
+```bash
+# Install Docker Compose (if not already installed)
+sudo apt update
+sudo apt install docker-compose
+
+# Verify installation
+docker-compose --version
+```
+
+**Deployment:**
 ```bash
 # Basic deployment (4 PLCs + Historian)
 docker-compose up -d
@@ -239,9 +247,11 @@ docker-compose ps
 # View logs
 docker-compose logs -f
 
-# Stop
+# Stop all services
 docker-compose down
 ```
+
+> **Note:** Use `docker-compose` (with hyphen) for the standalone version, or install Docker Compose V2 plugin to use `docker compose` (with space).
 
 ---
 
