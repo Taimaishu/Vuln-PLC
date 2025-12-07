@@ -48,21 +48,30 @@ PLC3_STATE = {
 }
 
 def sync_state_to_shared():
-    for key, value in PLC3_STATE.items():
-        shared_state.update_state(f'plc3_{key}', value)
+    """Sync PLC-3 state to shared storage (calculated values only, not controls)"""
+    calculated_keys = [
+        'zone1_temp', 'zone2_temp', 'zone3_temp',
+        'setpoint1', 'setpoint2', 'setpoint3',
+        'safety_limit_high', 'safety_limit_low'
+    ]
+    for key in calculated_keys:
+        if key in PLC3_STATE:
+            shared_state.update_state(f'plc3_{key}', PLC3_STATE[key])
 
 def sync_state_from_shared():
     state = shared_state.load_state()
     for key in PLC3_STATE.keys():
         shared_key = f'plc3_{key}'
-        if shared_key in state:
+        if shared_key in state and state[shared_key] is not None:
             PLC3_STATE[key] = state[shared_key]
 
 def process_simulation():
     """Simulate temperature control system"""
     while True:
         try:
-            sync_state_from_shared()
+            # NOTE: Don't load state from shared - it would overwrite
+            # control values set via web interface or Modbus
+            # Control values come from register monitor thread only
 
             # Simulate Zone 1
             ambient_loss = (PLC3_STATE['zone1_temp'] - 20) * 0.05
@@ -143,25 +152,54 @@ def update_modbus_registers():
         log.error(f"Error updating registers: {e}")
 
 def read_modbus_registers():
+    """Read Modbus registers and update state ONLY if changed by external write"""
     try:
         context = server_context[0]
 
+        # Read coils - only update if they differ from current state
         coils = context.getValues(1, 0, 20)
-        PLC3_STATE['heater1_status'] = bool(coils[0])
-        PLC3_STATE['heater2_status'] = bool(coils[1])
-        PLC3_STATE['heater3_status'] = bool(coils[2])
-        PLC3_STATE['cooler1_status'] = bool(coils[3])
-        PLC3_STATE['cooler2_status'] = bool(coils[4])
-        PLC3_STATE['cooler3_status'] = bool(coils[5])
-        PLC3_STATE['thermal_runaway'] = bool(coils[10])
+        if bool(coils[0]) != PLC3_STATE['heater1_status']:
+            PLC3_STATE['heater1_status'] = bool(coils[0])
+            log.info(f"External Modbus write: heater1_status = {coils[0]}")
+        if bool(coils[1]) != PLC3_STATE['heater2_status']:
+            PLC3_STATE['heater2_status'] = bool(coils[1])
+            log.info(f"External Modbus write: heater2_status = {coils[1]}")
+        if bool(coils[2]) != PLC3_STATE['heater3_status']:
+            PLC3_STATE['heater3_status'] = bool(coils[2])
+            log.info(f"External Modbus write: heater3_status = {coils[2]}")
+        if bool(coils[3]) != PLC3_STATE['cooler1_status']:
+            PLC3_STATE['cooler1_status'] = bool(coils[3])
+            log.info(f"External Modbus write: cooler1_status = {coils[3]}")
+        if bool(coils[4]) != PLC3_STATE['cooler2_status']:
+            PLC3_STATE['cooler2_status'] = bool(coils[4])
+            log.info(f"External Modbus write: cooler2_status = {coils[4]}")
+        if bool(coils[5]) != PLC3_STATE['cooler3_status']:
+            PLC3_STATE['cooler3_status'] = bool(coils[5])
+            log.info(f"External Modbus write: cooler3_status = {coils[5]}")
+        if bool(coils[10]) != PLC3_STATE['thermal_runaway']:
+            PLC3_STATE['thermal_runaway'] = bool(coils[10])
+            log.info(f"External Modbus write: thermal_runaway = {coils[10]}")
 
+        # Read holding registers - only update if changed
         regs = context.getValues(3, 0, 60)
-        PLC3_STATE['heater1_power'] = max(0, min(100, regs[2]))
-        PLC3_STATE['cooler1_power'] = max(0, min(100, regs[3]))
-        PLC3_STATE['heater2_power'] = max(0, min(100, regs[22]))
-        PLC3_STATE['cooler2_power'] = max(0, min(100, regs[23]))
-        PLC3_STATE['heater3_power'] = max(0, min(100, regs[42]))
-        PLC3_STATE['cooler3_power'] = max(0, min(100, regs[43]))
+        if regs[2] != PLC3_STATE['heater1_power']:
+            PLC3_STATE['heater1_power'] = max(0, min(100, regs[2]))
+            log.info(f"External Modbus write: heater1_power = {regs[2]}")
+        if regs[3] != PLC3_STATE['cooler1_power']:
+            PLC3_STATE['cooler1_power'] = max(0, min(100, regs[3]))
+            log.info(f"External Modbus write: cooler1_power = {regs[3]}")
+        if regs[22] != PLC3_STATE['heater2_power']:
+            PLC3_STATE['heater2_power'] = max(0, min(100, regs[22]))
+            log.info(f"External Modbus write: heater2_power = {regs[22]}")
+        if regs[23] != PLC3_STATE['cooler2_power']:
+            PLC3_STATE['cooler2_power'] = max(0, min(100, regs[23]))
+            log.info(f"External Modbus write: cooler2_power = {regs[23]}")
+        if regs[42] != PLC3_STATE['heater3_power']:
+            PLC3_STATE['heater3_power'] = max(0, min(100, regs[42]))
+            log.info(f"External Modbus write: heater3_power = {regs[42]}")
+        if regs[43] != PLC3_STATE['cooler3_power']:
+            PLC3_STATE['cooler3_power'] = max(0, min(100, regs[43]))
+            log.info(f"External Modbus write: cooler3_power = {regs[43]}")
 
     except Exception as e:
         log.error(f"Error reading registers: {e}")
@@ -173,6 +211,29 @@ def register_monitor():
             time.sleep(0.5)
         except Exception as e:
             log.error(f"Register monitor error: {e}")
+            time.sleep(1)
+
+def shared_state_monitor():
+    """Monitor shared state for web interface changes"""
+    while True:
+        try:
+            state = shared_state.load_state()
+            keys_to_monitor = [
+                'heater1_status', 'heater2_status', 'heater3_status',
+                'cooler1_status', 'cooler2_status', 'cooler3_status',
+                'heater1_power', 'heater2_power', 'heater3_power',
+                'cooler1_power', 'cooler2_power', 'cooler3_power',
+                'thermal_runaway'
+            ]
+            for key in keys_to_monitor:
+                shared_key = f'plc3_{key}'
+                if shared_key in state and state[shared_key] is not None:
+                    if PLC3_STATE[key] != state[shared_key]:
+                        log.info(f"Web interface change: {key} = {state[shared_key]}")
+                        PLC3_STATE[key] = state[shared_key]
+            time.sleep(0.3)
+        except Exception as e:
+            log.error(f"State monitor error: {e}")
             time.sleep(1)
 
 # Initialize Modbus datastore
@@ -194,11 +255,18 @@ identity.ModelName = 'VulnPLC-3000-TEMP'
 identity.MajorMinorRevision = '2.1.0'
 
 if __name__ == '__main__':
+    # Initialize shared state with PLC-3 defaults
+    sync_state_to_shared()
+    log.info("PLC-3 state initialized in shared storage")
+
     sim_thread = threading.Thread(target=process_simulation, daemon=True)
     sim_thread.start()
 
     monitor_thread = threading.Thread(target=register_monitor, daemon=True)
     monitor_thread.start()
+
+    state_monitor_thread = threading.Thread(target=shared_state_monitor, daemon=True)
+    state_monitor_thread.start()
 
     log.info("=" * 60)
     log.info("PLC-3: Temperature Control System - Modbus Server")

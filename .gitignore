@@ -39,6 +39,7 @@ env/
 logs/
 *.log
 *.db
+*.db-journal
 *.sqlite
 *.sqlite3
 plc.db

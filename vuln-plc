@@ -9,8 +9,8 @@ import sys
 import subprocess
 from pathlib import Path
 
-# Get the installation directory
-INSTALL_DIR = Path(__file__).parent.resolve()
+# Get the installation directory (follow symlinks)
+INSTALL_DIR = Path(__file__).resolve().parent
 
 def print_banner():
     """Display the application banner"""

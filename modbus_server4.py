@@ -50,21 +50,30 @@ PLC4_STATE = {
 }
 
 def sync_state_to_shared():
-    for key, value in PLC4_STATE.items():
-        shared_state.update_state(f'plc4_{key}', value)
+    """Sync PLC-4 state to shared storage (calculated values only, not controls)"""
+    calculated_keys = [
+        'watchdog_counter', 'critical_alarm_count',
+        'last_safety_check', 'system_healthy',
+        'gas_leak_detected'
+    ]
+    for key in calculated_keys:
+        if key in PLC4_STATE:
+            shared_state.update_state(f'plc4_{key}', PLC4_STATE[key])
 
 def sync_state_from_shared():
     state = shared_state.load_state()
     for key in PLC4_STATE.keys():
         shared_key = f'plc4_{key}'
-        if shared_key in state:
+        if shared_key in state and state[shared_key] is not None:
             PLC4_STATE[key] = state[shared_key]
 
 def process_simulation():
     """Simulate safety system"""
     while True:
         try:
-            sync_state_from_shared()
+            # NOTE: Don't load state from shared - it would overwrite
+            # control values set via web interface or Modbus
+            # Control values come from register monitor thread only
 
             # Watchdog timer
             if PLC4_STATE['watchdog_enabled']:
@@ -170,35 +179,70 @@ def update_modbus_registers():
         log.error(f"Error updating registers: {e}")
 
 def read_modbus_registers():
+    """Read Modbus registers and update state ONLY if changed by external write"""
     try:
         context = server_context[0]
 
-        # Read coils
+        # Read coils - only update if they differ from current state
         coils = context.getValues(1, 0, 50)
-        PLC4_STATE['emergency_stop_1'] = bool(coils[0])
-        PLC4_STATE['emergency_stop_2'] = bool(coils[1])
-        PLC4_STATE['emergency_stop_3'] = bool(coils[2])
-        PLC4_STATE['master_emergency_stop'] = bool(coils[3])
-        PLC4_STATE['safety_interlock_1'] = bool(coils[10])
-        PLC4_STATE['safety_interlock_2'] = bool(coils[11])
-        PLC4_STATE['safety_interlock_3'] = bool(coils[12])
-        PLC4_STATE['fire_detection_zone1'] = bool(coils[20])
-        PLC4_STATE['fire_detection_zone2'] = bool(coils[21])
-        PLC4_STATE['fire_detection_zone3'] = bool(coils[22])
-        PLC4_STATE['gas_detection_zone1'] = bool(coils[23])
-        PLC4_STATE['gas_detection_zone2'] = bool(coils[24])
-        PLC4_STATE['fire_suppression_active'] = bool(coils[30])
-        PLC4_STATE['evacuation_alarm'] = bool(coils[31])
-        PLC4_STATE['safety_bypass_mode'] = bool(coils[40])
-        PLC4_STATE['watchdog_enabled'] = bool(coils[41])
+        if bool(coils[0]) != PLC4_STATE['emergency_stop_1']:
+            PLC4_STATE['emergency_stop_1'] = bool(coils[0])
+            log.info(f"External Modbus write: emergency_stop_1 = {coils[0]}")
+        if bool(coils[1]) != PLC4_STATE['emergency_stop_2']:
+            PLC4_STATE['emergency_stop_2'] = bool(coils[1])
+            log.info(f"External Modbus write: emergency_stop_2 = {coils[1]}")
+        if bool(coils[2]) != PLC4_STATE['emergency_stop_3']:
+            PLC4_STATE['emergency_stop_3'] = bool(coils[2])
+            log.info(f"External Modbus write: emergency_stop_3 = {coils[2]}")
+        if bool(coils[3]) != PLC4_STATE['master_emergency_stop']:
+            PLC4_STATE['master_emergency_stop'] = bool(coils[3])
+            log.info(f"External Modbus write: master_emergency_stop = {coils[3]}")
+        if bool(coils[10]) != PLC4_STATE['safety_interlock_1']:
+            PLC4_STATE['safety_interlock_1'] = bool(coils[10])
+            log.info(f"External Modbus write: safety_interlock_1 = {coils[10]}")
+        if bool(coils[11]) != PLC4_STATE['safety_interlock_2']:
+            PLC4_STATE['safety_interlock_2'] = bool(coils[11])
+            log.info(f"External Modbus write: safety_interlock_2 = {coils[11]}")
+        if bool(coils[12]) != PLC4_STATE['safety_interlock_3']:
+            PLC4_STATE['safety_interlock_3'] = bool(coils[12])
+            log.info(f"External Modbus write: safety_interlock_3 = {coils[12]}")
+        if bool(coils[20]) != PLC4_STATE['fire_detection_zone1']:
+            PLC4_STATE['fire_detection_zone1'] = bool(coils[20])
+            log.info(f"External Modbus write: fire_detection_zone1 = {coils[20]}")
+        if bool(coils[21]) != PLC4_STATE['fire_detection_zone2']:
+            PLC4_STATE['fire_detection_zone2'] = bool(coils[21])
+            log.info(f"External Modbus write: fire_detection_zone2 = {coils[21]}")
+        if bool(coils[22]) != PLC4_STATE['fire_detection_zone3']:
+            PLC4_STATE['fire_detection_zone3'] = bool(coils[22])
+            log.info(f"External Modbus write: fire_detection_zone3 = {coils[22]}")
+        if bool(coils[23]) != PLC4_STATE['gas_detection_zone1']:
+            PLC4_STATE['gas_detection_zone1'] = bool(coils[23])
+            log.info(f"External Modbus write: gas_detection_zone1 = {coils[23]}")
+        if bool(coils[24]) != PLC4_STATE['gas_detection_zone2']:
+            PLC4_STATE['gas_detection_zone2'] = bool(coils[24])
+            log.info(f"External Modbus write: gas_detection_zone2 = {coils[24]}")
+        if bool(coils[30]) != PLC4_STATE['fire_suppression_active']:
+            PLC4_STATE['fire_suppression_active'] = bool(coils[30])
+            log.info(f"External Modbus write: fire_suppression_active = {coils[30]}")
+        if bool(coils[31]) != PLC4_STATE['evacuation_alarm']:
+            PLC4_STATE['evacuation_alarm'] = bool(coils[31])
+            log.info(f"External Modbus write: evacuation_alarm = {coils[31]}")
+        if bool(coils[40]) != PLC4_STATE['safety_bypass_mode']:
+            PLC4_STATE['safety_bypass_mode'] = bool(coils[40])
+            log.info(f"External Modbus write: safety_bypass_mode = {coils[40]}")
+        if bool(coils[41]) != PLC4_STATE['watchdog_enabled']:
+            PLC4_STATE['watchdog_enabled'] = bool(coils[41])
+            log.info(f"External Modbus write: watchdog_enabled = {coils[41]}")
 
-        # Read holding registers
+        # Read holding registers - only update if changed
         regs = context.getValues(3, 0, 10)
-        PLC4_STATE['safety_override_code'] = regs[2]
-
-        # Reset watchdog if code matches
-        if PLC4_STATE['safety_override_code'] == 1234:  # VULNERABILITY: Weak code
-            PLC4_STATE['watchdog_counter'] = 0
+        if regs[2] != PLC4_STATE['safety_override_code']:
+            PLC4_STATE['safety_override_code'] = regs[2]
+            log.info(f"External Modbus write: safety_override_code = {regs[2]}")
+            # Reset watchdog if code matches
+            if PLC4_STATE['safety_override_code'] == 1234:  # VULNERABILITY: Weak code
+                PLC4_STATE['watchdog_counter'] = 0
+                log.info("Watchdog counter reset via override code")
 
     except Exception as e:
         log.error(f"Error reading registers: {e}")
@@ -210,6 +254,30 @@ def register_monitor():
             time.sleep(0.5)
         except Exception as e:
             log.error(f"Register monitor error: {e}")
+            time.sleep(1)
+
+def shared_state_monitor():
+    """Monitor shared state for web interface changes"""
+    while True:
+        try:
+            state = shared_state.load_state()
+            keys_to_monitor = [
+                'emergency_stop_1', 'emergency_stop_2', 'emergency_stop_3',
+                'master_emergency_stop', 'safety_interlock_1', 'safety_interlock_2', 'safety_interlock_3',
+                'fire_detection_zone1', 'fire_detection_zone2', 'fire_detection_zone3',
+                'gas_detection_zone1', 'gas_detection_zone2',
+                'fire_suppression_active', 'evacuation_alarm',
+                'safety_bypass_mode', 'watchdog_enabled'
+            ]
+            for key in keys_to_monitor:
+                shared_key = f'plc4_{key}'
+                if shared_key in state and state[shared_key] is not None:
+                    if PLC4_STATE[key] != state[shared_key]:
+                        log.info(f"Web interface change: {key} = {state[shared_key]}")
+                        PLC4_STATE[key] = state[shared_key]
+            time.sleep(0.3)
+        except Exception as e:
+            log.error(f"State monitor error: {e}")
             time.sleep(1)
 
 # Initialize Modbus datastore
@@ -231,11 +299,18 @@ identity.ModelName = 'VulnPLC-4000-ESD'
 identity.MajorMinorRevision = '3.0.1'
 
 if __name__ == '__main__':
+    # Initialize shared state with PLC-4 defaults
+    sync_state_to_shared()
+    log.info("PLC-4 state initialized in shared storage")
+
     sim_thread = threading.Thread(target=process_simulation, daemon=True)
     sim_thread.start()
 
     monitor_thread = threading.Thread(target=register_monitor, daemon=True)
     monitor_thread.start()
+
+    state_monitor_thread = threading.Thread(target=shared_state_monitor, daemon=True)
+    state_monitor_thread.start()
 
     log.info("=" * 60)
     log.info("PLC-4: Safety/Emergency Shutdown System - Modbus Server")

@@ -344,6 +344,40 @@ def api_export():
 
     return jsonify({'success': True, 'message': 'Export prepared'})
 
+@app.route('/api/stats')
+def api_stats():
+    """Get statistics about collected data"""
+    if 'username' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    conn = sqlite3.connect('historian.db')
+    c = conn.cursor()
+
+    c.execute("SELECT COUNT(*) FROM timeseries")
+    total = c.fetchone()[0]
+
+    c.execute("SELECT COUNT(*) FROM timeseries WHERE plc_id=1")
+    plc1 = c.fetchone()[0]
+
+    c.execute("SELECT COUNT(*) FROM timeseries WHERE plc_id=2")
+    plc2 = c.fetchone()[0]
+
+    c.execute("SELECT COUNT(*) FROM timeseries WHERE plc_id=3")
+    plc3 = c.fetchone()[0]
+
+    c.execute("SELECT COUNT(*) FROM timeseries WHERE plc_id=4")
+    plc4 = c.fetchone()[0]
+
+    conn.close()
+
+    return jsonify({
+        'total': total,
+        'plc1': plc1,
+        'plc2': plc2,
+        'plc3': plc3,
+        'plc4': plc4
+    })
+
 # Start data collector thread
 collector_thread = threading.Thread(target=data_collector, daemon=True)
 collector_thread.start()

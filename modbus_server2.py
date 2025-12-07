@@ -46,16 +46,25 @@ PLC2_STATE = {
 
 # Store state in shared storage
 def sync_state_to_shared():
-    """Sync PLC-2 state to shared storage"""
-    for key, value in PLC2_STATE.items():
-        shared_state.update_state(f'plc2_{key}', value)
+    """Sync PLC-2 state to shared storage (calculated values only, not controls)"""
+    # Only sync calculated/sensor values, NOT control values
+    # Control values are managed by web interface and Modbus writes
+    calculated_keys = [
+        'pressure_vessel_1', 'pressure_vessel_2',
+        'pressure_sensor_1', 'pressure_sensor_2',
+        'high_pressure_alarm_1', 'high_pressure_alarm_2',
+        'low_pressure_alarm_1', 'low_pressure_alarm_2'
+    ]
+    for key in calculated_keys:
+        if key in PLC2_STATE:
+            shared_state.update_state(f'plc2_{key}', PLC2_STATE[key])
 
 def sync_state_from_shared():
     """Load PLC-2 state from shared storage"""
     state = shared_state.load_state()
     for key in PLC2_STATE.keys():
         shared_key = f'plc2_{key}'
-        if shared_key in state:
+        if shared_key in state and state[shared_key] is not None:
             PLC2_STATE[key] = state[shared_key]
 
 # Modbus Register Mapping
@@ -84,8 +93,9 @@ def process_simulation():
     """Simulate pressure control system behavior"""
     while True:
         try:
-            # Load current state from shared storage
-            sync_state_from_shared()
+            # NOTE: Don't load state from shared - it would overwrite
+            # control values set via web interface or Modbus
+            # Control values come from register monitor thread only
 
             # Simulate pressure vessel 1
             if PLC2_STATE['compressor_1_status']:
@@ -96,9 +106,10 @@ def process_simulation():
                 # Natural pressure leak
                 PLC2_STATE['pressure_vessel_1'] -= 0.5
 
-            # Relief valve opens automatically at high pressure
-            if PLC2_STATE['pressure_vessel_1'] > 150:
-                PLC2_STATE['relief_valve_1'] = True
+            # Relief valve operation (manual control from web interface)
+            # NOTE: Automatic safety override disabled for manual control
+            # if PLC2_STATE['pressure_vessel_1'] > 150:
+            #     PLC2_STATE['relief_valve_1'] = True
 
             if PLC2_STATE['relief_valve_1']:
                 PLC2_STATE['pressure_vessel_1'] -= 5.0
@@ -113,8 +124,9 @@ def process_simulation():
             else:
                 PLC2_STATE['pressure_vessel_2'] -= 0.5
 
-            if PLC2_STATE['pressure_vessel_2'] > 150:
-                PLC2_STATE['relief_valve_2'] = True
+            # Relief valve 2 - manual control only
+            # if PLC2_STATE['pressure_vessel_2'] > 150:
+            #     PLC2_STATE['relief_valve_2'] = True
 
             if PLC2_STATE['relief_valve_2']:
                 PLC2_STATE['pressure_vessel_2'] -= 5.0
@@ -177,24 +189,37 @@ def update_modbus_registers():
         log.error(f"Error updating registers: {e}")
 
 def read_modbus_registers():
-    """Read Modbus registers and update state"""
+    """Read Modbus registers and update state ONLY if changed by external write"""
     try:
         context = server_context[0]
 
-        # Read coils
+        # Read coils - only update if they differ from current state
+        # (indicates external Modbus write)
         coils = context.getValues(1, 0, 10)
-        PLC2_STATE['compressor_1_status'] = bool(coils[0])
-        PLC2_STATE['compressor_2_status'] = bool(coils[1])
-        PLC2_STATE['relief_valve_1'] = bool(coils[2])
-        PLC2_STATE['relief_valve_2'] = bool(coils[3])
-        PLC2_STATE['emergency_vent'] = bool(coils[4])
+        if bool(coils[0]) != PLC2_STATE['compressor_1_status']:
+            PLC2_STATE['compressor_1_status'] = bool(coils[0])
+            log.info(f"External Modbus write: compressor_1_status = {coils[0]}")
+        if bool(coils[1]) != PLC2_STATE['compressor_2_status']:
+            PLC2_STATE['compressor_2_status'] = bool(coils[1])
+            log.info(f"External Modbus write: compressor_2_status = {coils[1]}")
+        if bool(coils[2]) != PLC2_STATE['relief_valve_1']:
+            PLC2_STATE['relief_valve_1'] = bool(coils[2])
+            log.info(f"External Modbus write: relief_valve_1 = {coils[2]}")
+        if bool(coils[3]) != PLC2_STATE['relief_valve_2']:
+            PLC2_STATE['relief_valve_2'] = bool(coils[3])
+            log.info(f"External Modbus write: relief_valve_2 = {coils[3]}")
+        if bool(coils[4]) != PLC2_STATE['emergency_vent']:
+            PLC2_STATE['emergency_vent'] = bool(coils[4])
+            log.info(f"External Modbus write: emergency_vent = {coils[4]}")
 
-        # Read holding registers
+        # Read holding registers - only update if changed
         regs = context.getValues(3, 0, 60)
         if regs[1] != PLC2_STATE['compressor_1_speed']:
             PLC2_STATE['compressor_1_speed'] = max(0, min(100, regs[1]))
+            log.info(f"External Modbus write: compressor_1_speed = {regs[1]}")
         if regs[21] != PLC2_STATE['compressor_2_speed']:
             PLC2_STATE['compressor_2_speed'] = max(0, min(100, regs[21]))
+            log.info(f"External Modbus write: compressor_2_speed = {regs[21]}")
 
     except Exception as e:
         log.error(f"Error reading registers: {e}")
@@ -207,6 +232,31 @@ def register_monitor():
             time.sleep(0.5)
         except Exception as e:
             log.error(f"Register monitor error: {e}")
+            time.sleep(1)
+
+def shared_state_monitor():
+    """Monitor shared state for web interface changes"""
+    while True:
+        try:
+            state = shared_state.load_state()
+
+            # Check control values from web interface
+            keys_to_monitor = [
+                'compressor_1_status', 'compressor_2_status',
+                'compressor_1_speed', 'compressor_2_speed',
+                'relief_valve_1', 'relief_valve_2', 'emergency_vent'
+            ]
+
+            for key in keys_to_monitor:
+                shared_key = f'plc2_{key}'
+                if shared_key in state and state[shared_key] is not None:
+                    if PLC2_STATE[key] != state[shared_key]:
+                        log.info(f"Web interface change: {key} = {state[shared_key]}")
+                        PLC2_STATE[key] = state[shared_key]
+
+            time.sleep(0.3)
+        except Exception as e:
+            log.error(f"State monitor error: {e}")
             time.sleep(1)
 
 # Initialize Modbus datastore
@@ -229,6 +279,10 @@ identity.ModelName = 'VulnPLC-2000-PSI'
 identity.MajorMinorRevision = '1.0.0'
 
 if __name__ == '__main__':
+    # Initialize shared state with PLC-2 defaults
+    sync_state_to_shared()
+    log.info("PLC-2 state initialized in shared storage")
+
     # Start simulation thread
     sim_thread = threading.Thread(target=process_simulation, daemon=True)
     sim_thread.start()
@@ -236,6 +290,10 @@ if __name__ == '__main__':
     # Start register monitor thread
     monitor_thread = threading.Thread(target=register_monitor, daemon=True)
     monitor_thread.start()
+
+    # Start shared state monitor thread
+    state_monitor_thread = threading.Thread(target=shared_state_monitor, daemon=True)
+    state_monitor_thread.start()
 
     log.info("=" * 60)
     log.info("PLC-2: Pressure Control System - Modbus Server")

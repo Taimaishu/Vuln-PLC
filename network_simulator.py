@@ -176,9 +176,9 @@ class NetworkTrafficSimulator:
         traffic_log = shared_state.get_state('network_traffic_log', [])
         traffic_log.append(traffic_entry)
 
-        # Keep only last 1000 entries
-        if len(traffic_log) > 1000:
-            traffic_log = traffic_log[-1000:]
+        # Keep only last 100 entries (reduced to limit state file size)
+        if len(traffic_log) > 100:
+            traffic_log = traffic_log[-100:]
 
         shared_state.update_state('network_traffic_log', traffic_log)
 

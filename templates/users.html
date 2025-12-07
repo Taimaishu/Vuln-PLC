@@ -60,6 +60,41 @@
         .role-admin { background: #e74c3c; color: white; }
         .role-operator { background: #f39c12; color: white; }
         .role-guest { background: #95a5a6; color: white; }
+        button {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            margin: 2px;
+        }
+        button.primary { background: #3498db; color: white; }
+        button.primary:hover { background: #2980b9; }
+        button.danger { background: #e74c3c; color: white; }
+        button.danger:hover { background: #c0392b; }
+        button.warning { background: #f39c12; color: white; }
+        button.warning:hover { background: #e67e22; }
+        .form-group {
+            margin: 15px 0;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .add-user-form {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -74,6 +109,31 @@
 
     <div class="container">
         <div class="card">
+            <h2>Add New User</h2>
+            <div class="add-user-form">
+                <form id="addUserForm">
+                    <div class="form-group">
+                        <label>Username:</label>
+                        <input type="text" id="new-username" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password:</label>
+                        <input type="password" id="new-password" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Role:</label>
+                        <select id="new-role">
+                            <option value="guest">Guest</option>
+                            <option value="operator">Operator</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="primary">Add User</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
             <h2>System Users</h2>
             <table>
                 <thead>
@@ -81,19 +141,111 @@
                         <th>ID</th>
                         <th>Username</th>
                         <th>Role</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="users-table">
                     {% for user in users %}
                     <tr>
                         <td>{{ user[0] }}</td>
                         <td>{{ user[1] }}</td>
-                        <td><span class="role-badge role-{{ user[2] }}">{{ user[2] }}</span></td>
+                        <td>
+                            <span class="role-badge role-{{ user[2] }}">{{ user[2] }}</span>
+                        </td>
+                        <td>
+                            <select id="role-{{ user[0] }}" onchange="changeRole({{ user[0] }})">
+                                <option value="guest" {% if user[2] == 'guest' %}selected{% endif %}>Guest</option>
+                                <option value="operator" {% if user[2] == 'operator' %}selected{% endif %}>Operator</option>
+                                <option value="admin" {% if user[2] == 'admin' %}selected{% endif %}>Admin</option>
+                            </select>
+                            <button class="danger" onclick="deleteUser({{ user[0] }}, '{{ user[1] }}')">Delete</button>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
+
+    <script>
+        document.getElementById('addUserForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const username = document.getElementById('new-username').value;
+            const password = document.getElementById('new-password').value;
+            const role = document.getElementById('new-role').value;
+
+            const formData = new FormData();
+            formData.append('username', username);
+            formData.append('password', password);
+            formData.append('role', role);
+
+            try {
+                const response = await fetch('/admin/users/add', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error adding user: ' + error);
+            }
+        });
+
+        async function deleteUser(userId, username) {
+            if (!confirm(`Are you sure you want to delete user "${username}"?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/admin/users/delete/${userId}`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error deleting user: ' + error);
+            }
+        }
+
+        async function changeRole(userId) {
+            const newRole = document.getElementById(`role-${userId}`).value;
+
+            const formData = new FormData();
+            formData.append('role', newRole);
+
+            try {
+                const response = await fetch(`/admin/users/edit/${userId}`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error changing role: ' + error);
+            }
+        }
+    </script>
 </body>
 </html>

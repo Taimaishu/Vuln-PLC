@@ -8,6 +8,7 @@ import json
 import os
 import threading
 import time
+import fcntl  # For file locking across processes
 
 STATE_FILE = '/tmp/vulnplc_state.json'
 LOCK = threading.Lock()
@@ -55,27 +56,51 @@ def init_state():
     return load_state()
 
 def load_state():
-    """Load state from file"""
+    """Load state from file with proper file locking"""
     try:
         with LOCK:
             if os.path.exists(STATE_FILE):
                 with open(STATE_FILE, 'r') as f:
-                    return json.load(f)
+                    # Acquire shared lock for reading
+                    fcntl.flock(f.fileno(), fcntl.LOCK_SH)
+                    try:
+                        data = json.load(f)
+                        return data
+                    finally:
+                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
             else:
                 return DEFAULT_STATE.copy()
+    except json.JSONDecodeError as e:
+        print(f"Error loading state (JSON corrupt): {e}")
+        print("Reinitializing with default state...")
+        save_state(DEFAULT_STATE.copy())
+        return DEFAULT_STATE.copy()
     except Exception as e:
         print(f"Error loading state: {e}")
         return DEFAULT_STATE.copy()
 
 def save_state(state):
-    """Save state to file"""
+    """Save state to file with atomic write (prevents corruption)"""
     try:
         with LOCK:
             state['last_update'] = time.time()
-            with open(STATE_FILE, 'w') as f:
+            # Write to temp file first, then atomic rename
+            temp_file = STATE_FILE + f'.tmp.{os.getpid()}'
+            with open(temp_file, 'w') as f:
                 json.dump(state, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            # Atomic rename (replaces old file instantly)
+            os.replace(temp_file, STATE_FILE)
     except Exception as e:
         print(f"Error saving state: {e}")
+        # Clean up temp file if it exists
+        temp_file = STATE_FILE + f'.tmp.{os.getpid()}'
+        if os.path.exists(temp_file):
+            try:
+                os.remove(temp_file)
+            except:
+                pass
 
 def update_state(key, value):
     """Update a single state value"""

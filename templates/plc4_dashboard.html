@@ -259,6 +259,8 @@
                         Critical Alarms: <span id="alarm-count">0</span>
                     </div>
                 </div>
+                <button onclick="toggleWatchdog(true)">Enable Watchdog</button>
+                <button onclick="toggleWatchdog(false)" class="warning">Disable Watchdog</button>
                 <button onclick="resetWatchdog()">Reset Watchdog</button>
             </div>
 
@@ -361,6 +363,17 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({action: 'reset_all_alarms', value: true})
             }).then(() => updateStatus());
+        }
+
+        function toggleWatchdog(enable) {
+            fetch('/api/control', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action: 'watchdog_enabled', value: enable})
+            }).then(() => {
+                alert('Watchdog ' + (enable ? 'enabled' : 'disabled'));
+                updateStatus();
+            });
         }
 
         function resetWatchdog() {

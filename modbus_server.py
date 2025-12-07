@@ -91,14 +91,16 @@ class ModbusPLCServer:
                 state = shared_state.load_state()
 
                 # Update holding registers from state
+                # Use parent class setValues to bypass SyncedDataBlock override (prevents feedback loop)
                 for reg in range(20):  # Only update mapped registers
                     value = shared_state.state_to_register(reg)
-                    self.context[slave_id].setValues(3, reg, [value])
+                    ModbusSequentialDataBlock.setValues(self.context[slave_id].store['h'], reg, [value])
 
                 # Update coils from state
+                # Use parent class setValues to bypass SyncedDataBlock override (prevents feedback loop)
                 for coil in range(15):  # Only update mapped coils
                     value = shared_state.state_to_coil(coil)
-                    self.context[slave_id].setValues(1, coil, [value])
+                    ModbusSequentialDataBlock.setValues(self.context[slave_id].store['c'], coil, [value])
 
             except Exception as e:
                 print(f"Sync error: {e}")

@@ -33,7 +33,35 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            margin: 5px;
         }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .stat-value { font-size: 32px; font-weight: bold; color: #667eea; }
+        .stat-label { font-size: 14px; color: #aaa; margin-top: 5px; }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .data-table th, .data-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+        .data-table th { background: rgba(102, 126, 234, 0.2); }
+        .data-table tr:hover { background: rgba(102, 126, 234, 0.05); }
+        #chartContainer { height: 400px; }
     </style>
 </head>
 <body>
@@ -44,9 +72,117 @@
     <div class="container">
         <div class="card">
             <h2>Time-Series Data Platform</h2>
-            <p>Collecting data from 4 PLCs</p>
-            <button onclick="location.reload()">Refresh</button>
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalRecords">-</div>
+                    <div class="stat-label">Total Records</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="plc1Records">-</div>
+                    <div class="stat-label">PLC-1 Records</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="plc2Records">-</div>
+                    <div class="stat-label">PLC-2 Records</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="plc3Records">-</div>
+                    <div class="stat-label">PLC-3 Records</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="plc4Records">-</div>
+                    <div class="stat-label">PLC-4 Records</div>
+                </div>
+            </div>
+            <button onclick="refreshData()">Refresh</button>
+            <button onclick="showPLC(1)">Show PLC-1</button>
+            <button onclick="showPLC(2)">Show PLC-2</button>
+            <button onclick="showPLC(3)">Show PLC-3</button>
+            <button onclick="showPLC(4)">Show PLC-4</button>
+        </div>
+
+        <div class="card">
+            <h2>Recent Data Points</h2>
+            <table class="data-table" id="dataTable">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>PLC</th>
+                        <th>Tag</th>
+                        <th>Value</th>
+                        <th>Quality</th>
+                    </tr>
+                </thead>
+                <tbody id="dataTableBody">
+                    <tr><td colspan="5">Loading...</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
+
+    <script>
+        let currentPLC = 'all';
+
+        function refreshData() {
+            loadStats();
+            loadRecentData();
+        }
+
+        function showPLC(plcId) {
+            currentPLC = plcId;
+            loadRecentData();
+        }
+
+        function loadStats() {
+            fetch('/api/stats')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('totalRecords').textContent = data.total || 0;
+                    document.getElementById('plc1Records').textContent = data.plc1 || 0;
+                    document.getElementById('plc2Records').textContent = data.plc2 || 0;
+                    document.getElementById('plc3Records').textContent = data.plc3 || 0;
+                    document.getElementById('plc4Records').textContent = data.plc4 || 0;
+                });
+        }
+
+        function loadRecentData() {
+            fetch('/api/query', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    plc_id: currentPLC,
+                    tag_name: '%',
+                    hours: 1
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                const tbody = document.getElementById('dataTableBody');
+                tbody.innerHTML = '';
+
+                if (data.data && data.data.length > 0) {
+                    data.data.slice(0, 50).forEach(row => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${row.timestamp}</td>
+                            <td>PLC-${row.plc_id}</td>
+                            <td>${row.tag_name}</td>
+                            <td>${row.value.toFixed(2)}</td>
+                            <td>${row.quality}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5">No data available</td></tr>';
+                }
+            });
+        }
+
+        // Auto-refresh every 5 seconds
+        setInterval(refreshData, 5000);
+
+        // Load initial data
+        refreshData();
+    </script>
 </body>
 </html>

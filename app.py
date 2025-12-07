@@ -209,6 +209,90 @@ def admin_users():
 
     return render_template('users.html', users=users)
 
+@app.route('/admin/users/add', methods=['POST'])
+@require_role('admin')
+def admin_add_user():
+    """Add new user - admin only"""
+    username = request.form.get('username', '')
+    password = request.form.get('password', '')
+    role = request.form.get('role', 'guest')
+
+    if not username or not password:
+        return jsonify({'error': 'Username and password required'}), 400
+
+    conn = sqlite3.connect('plc.db')
+    c = conn.cursor()
+
+    try:
+        # VULNERABILITY: Password stored in plaintext
+        c.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+                 (username, password, role))
+        conn.commit()
+        log_action(session['username'], 'add_user', f'Added user: {username} with role: {role}')
+        conn.close()
+        return jsonify({'success': True, 'message': f'User {username} added successfully'})
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({'error': 'Username already exists'}), 400
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/users/delete/<int:user_id>', methods=['POST'])
+@require_role('admin')
+def admin_delete_user(user_id):
+    """Delete user - admin only"""
+    conn = sqlite3.connect('plc.db')
+    c = conn.cursor()
+
+    # Get username before deleting
+    c.execute("SELECT username FROM users WHERE id = ?", (user_id,))
+    result = c.fetchone()
+
+    if not result:
+        conn.close()
+        return jsonify({'error': 'User not found'}), 404
+
+    username = result[0]
+
+    # VULNERABILITY: No check to prevent deleting own account
+    c.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
+    log_action(session['username'], 'delete_user', f'Deleted user: {username}')
+    return jsonify({'success': True, 'message': f'User {username} deleted'})
+
+@app.route('/admin/users/edit/<int:user_id>', methods=['POST'])
+@require_role('admin')
+def admin_edit_user(user_id):
+    """Edit user role - admin only"""
+    new_role = request.form.get('role', '')
+
+    if new_role not in ['admin', 'operator', 'guest']:
+        return jsonify({'error': 'Invalid role'}), 400
+
+    conn = sqlite3.connect('plc.db')
+    c = conn.cursor()
+
+    # Get username before editing
+    c.execute("SELECT username FROM users WHERE id = ?", (user_id,))
+    result = c.fetchone()
+
+    if not result:
+        conn.close()
+        return jsonify({'error': 'User not found'}), 404
+
+    username = result[0]
+
+    # VULNERABILITY: No check to prevent demoting own admin account
+    c.execute("UPDATE users SET role = ? WHERE id = ?", (new_role, user_id))
+    conn.commit()
+    conn.close()
+
+    log_action(session['username'], 'edit_user', f'Changed {username} role to {new_role}')
+    return jsonify({'success': True, 'message': f'User {username} updated to {new_role}'})
+
 @app.route('/admin/logs')
 @require_role('admin')
 def admin_logs():
@@ -448,8 +532,8 @@ def process_status():
         'flow_rate': PROCESS_STATE['flow_rate'],
         'pump_status': PROCESS_STATE['pump1_status'],
         'valve_status': PROCESS_STATE['valve1_status'],
-        # Include full state for advanced access
-        'full_state': PROCESS_STATE
+        # Include full state for advanced access (convert proxy to dict)
+        'full_state': shared_state.load_state()
     }
 
     return jsonify(response)
@@ -548,7 +632,7 @@ def process_control():
         PROCESS_STATE['tank2_level'] = 50.0
         log_action(session['username'], 'reset_tank2', 'Tank 2 level reset')
 
-    return jsonify({'success': True, 'state': PROCESS_STATE})
+    return jsonify({'success': True, 'state': shared_state.load_state()})
 
 @app.route('/api/alarms/list')
 def alarms_list():
@@ -600,8 +684,11 @@ def trending_data():
 
 def add_alarm(severity, message):
     """Add an alarm to the system"""
+    # Get current alarms list
+    current_alarms = PROCESS_STATE.get('alarms', [])
+
     alarm = {
-        'id': len(PROCESS_STATE['alarms']) + 1,
+        'id': len(current_alarms) + 1,
         'severity': severity,
         'message': message,
         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -609,8 +696,10 @@ def add_alarm(severity, message):
     }
 
     # Don't duplicate alarms
-    if not any(a['message'] == message for a in PROCESS_STATE['alarms']):
-        PROCESS_STATE['alarms'].append(alarm)
+    if not any(a['message'] == message for a in current_alarms):
+        current_alarms.append(alarm)
+        # Write back the modified list to persist changes
+        PROCESS_STATE['alarms'] = current_alarms
 
 # ============================================
 # ADDITIONAL VULNERABILITIES FOR TESTING
