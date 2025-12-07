@@ -16,9 +16,12 @@
 git clone https://github.com/Taimaishu/Vuln-PLC.git
 cd Vuln-PLC
 
-# Install and start all services
+# Install dependencies and start all services
 ./scripts/install.sh
 ./scripts/start_all.sh
+
+# Install modbus-cli for attacks
+pip install modbus-cli
 
 # Access the HMI Dashboard
 firefox http://localhost:8000
