@@ -44,10 +44,10 @@ docker-compose up
 pip install modbus-cli
 
 # Read registers
-modbus read localhost:5502 0 10
+sudo modbus 127.0.0.1:5502 read 0 10
 
 # Write register
-modbus write localhost:5502 0 1234
+sudo modbus 127.0.0.1:5502 write 0 1234
 ```
 
 ### Port Scan

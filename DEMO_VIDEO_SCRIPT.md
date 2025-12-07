@@ -40,10 +40,10 @@ The Complete ICS/SCADA Security Training Platform
 **Terminal commands (type these):**
 ```bash
 # Force pump ON
-modbus write localhost:5502 0 1
+sudo modbus 127.0.0.1:5502 write 0 1
 
 # Force valve CLOSED
-modbus write localhost:5502 1 0
+sudo modbus 127.0.0.1:5502 write 1 0
 ```
 
 **Voiceover:** "But watch what happens when an attacker uses Modbus to override safety controls."

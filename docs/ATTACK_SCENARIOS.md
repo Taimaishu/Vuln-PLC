@@ -95,7 +95,7 @@ docker-compose --profile full up -d
 
 # Perform attacks (flooding, unauthorized writes)
 for i in {1..100}; do
-  modbus read localhost:5502 $i 1
+  sudo modbus 127.0.0.1:5502 read $i 1
 done
 
 # Wait a moment for PCAP to be written

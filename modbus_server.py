@@ -182,16 +182,16 @@ class ModbusPLCServer:
     TEST COMMANDS:
     ────────────────────────────────────────────────────────────
     # Read tank level
-    modbus read localhost:5502 0 1
+    sudo modbus 127.0.0.1:5502 read 0 1
 
     # Set tank level to 80%
-    modbus write localhost:5502 0 800
+    sudo modbus 127.0.0.1:5502 write 0 800
 
     # Turn on pump 1
-    modbus write localhost:5502 -t 0 0 1
+    sudo modbus 127.0.0.1:5502 write -t 0 0 1
 
     # Read multiple registers
-    modbus read localhost:5502 0 10
+    sudo modbus 127.0.0.1:5502 read 0 10
 
     # Metasploit scanner
     use auxiliary/scanner/scada/modbusclient

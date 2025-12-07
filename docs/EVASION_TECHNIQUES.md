@@ -313,10 +313,10 @@ Use existing legitimate tools and processes to avoid deploying malware.
 # May be whitelisted
 
 # Legitimate usage:
-modbus read localhost:5502 0 10
+sudo modbus 127.0.0.1:5502 read 0 10
 
 # Malicious usage (same tool):
-modbus write localhost:5502 0 1800  # Dangerous value
+sudo modbus 127.0.0.1:5502 write 0 1800  # Dangerous value
 
 # Appears as normal diagnostic activity
 ```

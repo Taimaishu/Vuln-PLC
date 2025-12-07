@@ -59,51 +59,51 @@ pip install modbus-cli
 
 ```bash
 # Read tank level (register 0)
-modbus read localhost:5502 0 1
+sudo modbus 127.0.0.1:5502 read 0 1
 
 # Read first 10 registers
-modbus read localhost:5502 0 10
+sudo modbus 127.0.0.1:5502 read 0 10
 
 # Read input registers (sensor readings)
-modbus read localhost:5502 -t 4 0 10
+sudo modbus 127.0.0.1:5502 read -t 4 0 10
 
 # Read coils (pump/valve status)
-modbus read localhost:5502 -t 0 0 12
+sudo modbus 127.0.0.1:5502 read -t 0 0 12
 ```
 
 ### Write Operations (Watch HMI Update!)
 
 ```bash
 # Set tank level to 90%
-modbus write localhost:5502 0 900
+sudo modbus 127.0.0.1:5502 write 0 900
 # 🎯 Watch the tank fill up on the HMI!
 
 # Set tank level to 20%
-modbus write localhost:5502 0 200
+sudo modbus 127.0.0.1:5502 write 0 200
 # 🎯 Watch the tank drain on the HMI!
 
 # Increase temperature to 40°C
-modbus write localhost:5502 1 400
+sudo modbus 127.0.0.1:5502 write 1 400
 # 🎯 Watch temperature sensor update!
 
 # Set pressure to 150 kPa
-modbus write localhost:5502 2 1500
+sudo modbus 127.0.0.1:5502 write 2 1500
 # 🎯 Watch pressure go into warning zone!
 
 # Turn pump ON (coil write)
-modbus write localhost:5502 -t 0 0 1
+sudo modbus 127.0.0.1:5502 write -t 0 0 1
 # 🎯 Watch pump icon animate on HMI!
 
 # Turn pump OFF
-modbus write localhost:5502 -t 0 0 0
+sudo modbus 127.0.0.1:5502 write -t 0 0 0
 # 🎯 Watch pump icon stop!
 
 # Open valve 1
-modbus write localhost:5502 -t 0 3 1
+sudo modbus 127.0.0.1:5502 write -t 0 3 1
 # 🎯 Watch valve change color!
 
 # Trigger emergency stop
-modbus write localhost:5502 -t 0 10 1
+sudo modbus 127.0.0.1:5502 write -t 0 10 1
 # 🎯 Watch alarm appear!
 ```
 
@@ -166,7 +166,7 @@ client.close()
 ```bash
 # Open HMI in browser first
 for i in {100..900..100}; do
-  modbus write localhost:5502 0 $i
+  sudo modbus 127.0.0.1:5502 write 0 $i
   sleep 2
 done
 # Watch tank fill up smoothly!
@@ -175,38 +175,38 @@ done
 ### Scenario 2: Overfill Attack (Trigger Alarm)
 ```bash
 # Set tank to critical high level
-modbus write localhost:5502 0 950
+sudo modbus 127.0.0.1:5502 write 0 950
 # 🚨 Watch alarm appear on HMI!
 ```
 
 ### Scenario 3: Pump Control
 ```bash
 # Turn all pumps ON
-modbus write localhost:5502 -t 0 0 1
-modbus write localhost:5502 -t 0 1 1
-modbus write localhost:5502 -t 0 2 1
+sudo modbus 127.0.0.1:5502 write -t 0 0 1
+sudo modbus 127.0.0.1:5502 write -t 0 1 1
+sudo modbus 127.0.0.1:5502 write -t 0 2 1
 # Watch all pumps activate!
 
 # Turn all pumps OFF
-modbus write localhost:5502 -t 0 0 0
-modbus write localhost:5502 -t 0 1 0
-modbus write localhost:5502 -t 0 2 0
+sudo modbus 127.0.0.1:5502 write -t 0 0 0
+sudo modbus 127.0.0.1:5502 write -t 0 1 0
+sudo modbus 127.0.0.1:5502 write -t 0 2 0
 ```
 
 ### Scenario 4: Emergency Stop
 ```bash
 # Trigger emergency stop
-modbus write localhost:5502 -t 0 10 1
+sudo modbus 127.0.0.1:5502 write -t 0 10 1
 # 🚨 Watch emergency alarm!
 
 # Reset emergency stop
-modbus write localhost:5502 -t 0 10 0
+sudo modbus 127.0.0.1:5502 write -t 0 10 0
 ```
 
 ### Scenario 5: Temperature Attack
 ```bash
 # Overheat the tank
-modbus write localhost:5502 1 850
+sudo modbus 127.0.0.1:5502 write 1 850
 # 🔥 Watch temperature sensor go red!
 ```
 
@@ -215,22 +215,22 @@ modbus write localhost:5502 1 850
 ### Test 1: Unauthorized Access
 ```bash
 # No authentication required!
-modbus write localhost:5502 0 999
+sudo modbus 127.0.0.1:5502 write 0 999
 # Even without web login, you can control the PLC!
 ```
 
 ### Test 2: Buffer Overflow Attempt
 ```bash
 # Try to overflow register
-modbus write localhost:5502 0 65535
-modbus write localhost:5502 0 99999
+sudo modbus 127.0.0.1:5502 write 0 65535
+sudo modbus 127.0.0.1:5502 write 0 99999
 ```
 
 ### Test 3: Rapid Register Flooding
 ```bash
 # Flood with rapid writes
 for i in {1..100}; do
-  modbus write localhost:5502 0 $((RANDOM % 1000))
+  sudo modbus 127.0.0.1:5502 write 0 $((RANDOM % 1000))
 done
 ```
 
@@ -238,8 +238,8 @@ done
 ```bash
 # Rapidly toggle safety systems
 for i in {1..50}; do
-  modbus write localhost:5502 -t 0 11 0
-  modbus write localhost:5502 -t 0 11 1
+  sudo modbus 127.0.0.1:5502 write -t 0 11 0
+  sudo modbus 127.0.0.1:5502 write -t 0 11 1
 done
 ```
 
@@ -284,7 +284,7 @@ If HMI doesn't update:
 
 2. Verify Modbus write succeeded:
    ```bash
-   modbus read localhost:5502 0 1
+   sudo modbus 127.0.0.1:5502 read 0 1
    ```
 
 3. Check browser console (F12) for errors

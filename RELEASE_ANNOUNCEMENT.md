@@ -85,8 +85,8 @@ Watch what happens when an attacker overrides safety controls:
 
 ```bash
 # Force pump ON + valve CLOSED
-modbus write localhost:5502 0 1
-modbus write localhost:5502 1 0
+sudo modbus 127.0.0.1:5502 write 0 1
+sudo modbus 127.0.0.1:5502 write 1 0
 ```
 
 **Result on HMI:**

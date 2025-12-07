@@ -211,7 +211,7 @@ Modbus protocol has no authentication by default:
 1. Connect to Modbus server (port 5502):
    ```bash
    # Using modbus-cli
-   modbus write localhost:5502 0 31337
+   sudo modbus 127.0.0.1:5502 write 0 31337
    ```
 2. Write malicious values to control registers
 3. This affects the process without authentication

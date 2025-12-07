@@ -491,13 +491,13 @@ python3 system_monitor.py --web &
 3. Generate test attacks:
    ```bash
    # Unauthorized write
-   modbus write localhost:5502 10 9999
+   sudo modbus 127.0.0.1:5502 write 10 9999
 
    # Flooding
-   for i in {1..100}; do modbus read localhost:5502 $i 1; done
+   for i in {1..100}; do sudo modbus 127.0.0.1:5502 read $i 1; done
 
    # Sequential scan
-   for i in {0..50}; do modbus read localhost:5502 $i 1; sleep 0.1; done
+   for i in {0..50}; do sudo modbus 127.0.0.1:5502 read $i 1; sleep 0.1; done
    ```
 4. Observe IDS alerts
 5. Distinguish true attacks from false positives
@@ -555,7 +555,7 @@ curl -X POST http://localhost:5000/login -d "username=newadmin&password=ComplexP
 curl -X POST http://localhost:5000/login -d "username=admin&password=anything" --interface eth1
 
 # Should alert (unauthorized write)
-modbus write localhost:5502 10 9999
+sudo modbus 127.0.0.1:5502 write 10 9999
 # Check IDS alerts
 ```
 
@@ -651,13 +651,13 @@ ids.start()
 
 # Perform test attacks
 # 1. Unauthorized write
-modbus write localhost:5502 10 9999
+sudo modbus 127.0.0.1:5502 write 10 9999
 
 # 2. Sequential scan
-for i in {0..50}; do modbus read localhost:5502 $i 1; sleep 0.1; done
+for i in {0..50}; do sudo modbus 127.0.0.1:5502 read $i 1; sleep 0.1; done
 
 # 3. Flooding
-for i in {1..100}; do modbus read localhost:5502 0 1; done
+for i in {1..100}; do sudo modbus 127.0.0.1:5502 read 0 1; done
 
 # Stop capture after 60 seconds
 sleep 60

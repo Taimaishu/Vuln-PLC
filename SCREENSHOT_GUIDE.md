@@ -38,8 +38,8 @@ This guide helps you capture and organize screenshots for GitHub, documentation,
 **How to capture:**
 ```bash
 # With HMI open at http://localhost:8000
-modbus write localhost:5502 0 1    # Pump ON
-modbus write localhost:5502 1 0    # Valve CLOSED
+sudo modbus 127.0.0.1:5502 write 0 1    # Pump ON
+sudo modbus 127.0.0.1:5502 write 1 0    # Valve CLOSED
 # Wait 30 seconds for tank to fill
 # Take screenshot when tank hits 100%
 ```
@@ -76,8 +76,8 @@ python3 system_monitor.py
 ```bash
 python3 modbus_ids.py &
 # Generate attacks
-for i in {1..100}; do modbus read localhost:5502 $i 1; done
-modbus write localhost:5502 10 9999
+for i in {1..100}; do sudo modbus 127.0.0.1:5502 read $i 1; done
+sudo modbus 127.0.0.1:5502 write 10 9999
 # Take screenshot of alerts
 ```
 
@@ -137,7 +137,7 @@ docker-compose ps
 ```bash
 # In nice terminal (iTerm2/Hyper with theme)
 # Show command history or execute live
-modbus write localhost:5502 10 9999
+sudo modbus 127.0.0.1:5502 write 10 9999
 curl -X POST http://localhost:5000/login -d "username=admin' OR '1'='1..."
 python3 -c "import snap7; ..."
 ```
@@ -156,12 +156,12 @@ python3 -c "import snap7; ..."
 **How to capture:**
 ```bash
 # Trigger multiple issues simultaneously
-modbus write localhost:5502 0 1    # Tank pump on
-modbus write localhost:5502 1 0    # Valve closed
-modbus write localhost:5503 0 1    # Compressor on
-modbus write localhost:5503 1 0    # Relief closed
-modbus write localhost:5504 0 1    # Heater on
-modbus write localhost:5504 1 0    # Cooling off
+sudo modbus 127.0.0.1:5502 write 0 1    # Tank pump on
+sudo modbus 127.0.0.1:5502 write 1 0    # Valve closed
+sudo modbus 127.0.0.1:5503 write 0 1    # Compressor on
+sudo modbus 127.0.0.1:5503 write 1 0    # Relief closed
+sudo modbus 127.0.0.1:5504 write 0 1    # Heater on
+sudo modbus 127.0.0.1:5504 write 1 0    # Cooling off
 # Wait for cascading alarms
 ```
 
@@ -317,8 +317,8 @@ echo "Press ENTER after capturing screenshot 1..."
 read
 
 echo "2. Triggering tank overflow..."
-modbus write localhost:5502 0 1
-modbus write localhost:5502 1 0
+sudo modbus 127.0.0.1:5502 write 0 1
+sudo modbus 127.0.0.1:5502 write 1 0
 sleep 30
 echo "Press ENTER after capturing screenshot 2..."
 read

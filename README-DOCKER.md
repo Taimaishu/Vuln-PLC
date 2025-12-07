@@ -112,16 +112,16 @@ Connect from host machine:
 
 ```bash
 # PLC-1
-modbus read localhost:5502 0 10
+sudo modbus 127.0.0.1:5502 read 0 10
 
 # PLC-2
-modbus write localhost:5503 10 100
+sudo modbus 127.0.0.1:5503 write 10 100
 
 # PLC-3
-modbus read localhost:5504 0 10
+sudo modbus 127.0.0.1:5504 read 0 10
 
 # PLC-4
-modbus read localhost:5505 0 10
+sudo modbus 127.0.0.1:5505 read 0 10
 ```
 
 Connect from inside Docker network:
@@ -153,7 +153,7 @@ plc.disconnect()
 
 ```bash
 # From host
-modbus write localhost:5502 10 9999
+sudo modbus 127.0.0.1:5502 write 10 9999
 
 # Check IDS alerts (if running full profile)
 docker-compose logs modbus_ids | grep ALERT
@@ -164,7 +164,7 @@ docker-compose logs modbus_ids | grep ALERT
 ```bash
 # Sequential scan (reconnaissance pattern)
 for i in {0..50}; do
-  modbus read localhost:5502 $i 1
+  sudo modbus 127.0.0.1:5502 read $i 1
   sleep 0.1
 done
 
