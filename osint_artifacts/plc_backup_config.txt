@@ -1,0 +1,272 @@
+# PLC Configuration Backup
+# System: VulnPLC-1 Tank Control System
+# Backup Date: 2024-12-01 03:00:00
+# Backup Method: Automated Weekly Backup
+# Location: \\192.168.1.20\PLC_Backups\plc1_backup_20241201.zip
+
+================================================================================
+DEVICE INFORMATION
+================================================================================
+
+Device Name: PLC-1-TANK-CTRL
+IP Address: 192.168.100.10
+MAC Address: 00:1A:2B:3C:4D:5E
+Subnet Mask: 255.255.255.0
+Default Gateway: 192.168.100.1
+DNS Server: 192.168.1.1
+
+Modbus TCP Port: 502
+HTTP Port: 5010
+Firmware Version: v1.0.0
+Hardware Revision: Rev B
+Serial Number: VPL-001-2023-0042
+
+================================================================================
+NETWORK CONFIGURATION
+================================================================================
+
+VLAN: 100 (OT Network)
+Network Segment: 192.168.100.0/24
+
+Allowed Hosts:
+- HMI Server: 192.168.100.20
+- Historian: 192.168.50.10
+- Engineering Workstation: 192.168.100.30
+- ANY (Firewall misconfigured!)
+
+Modbus Settings:
+- Unit ID: 1
+- Timeout: 1000ms
+- Retries: 3
+- Authentication: DISABLED
+- Encryption: NONE
+
+================================================================================
+USER ACCOUNTS
+================================================================================
+
+Username: admin
+Password: admin (MD5: 21232f297a57a5a743894a0e4a801fc3)
+Role: Administrator
+Last Login: 2024-11-30 14:23:11
+Failed Logins: 0
+
+Username: engineer
+Password: plc123 (MD5: 7c6a180b36896a0a8c02787eeafb0e4c)
+Role: Engineer
+Last Login: 2024-11-28 09:15:42
+Failed Logins: 2
+
+Username: operator
+Password: operator (MD5: 4b583376b2767b923c3e1da60d10de59)
+Role: Operator
+Last Login: 2024-12-01 07:00:00
+Failed Logins: 0
+
+================================================================================
+PROCESS VARIABLES
+================================================================================
+
+Tank 1:
+- Level Setpoint: 50.0%
+- High Level Alarm: 90.0%
+- Low Level Alarm: 10.0%
+- Emergency Shutdown Level: 95.0%
+- Current Level: 52.3%
+
+Tank 2:
+- Level Setpoint: 45.0%
+- High Level Alarm: 85.0%
+- Low Level Alarm: 15.0%
+- Emergency Shutdown Level: 95.0%
+- Current Level: 47.1%
+
+Temperature:
+- Tank 1 Temp: 25.2°C
+- Tank 2 Temp: 24.8°C
+- High Temp Alarm: 80.0°C
+
+Pressure:
+- Tank 1 Pressure: 101.3 kPa
+- Tank 2 Pressure: 100.8 kPa
+- High Pressure Alarm: 150.0 kPa
+
+================================================================================
+MODBUS REGISTER MAP
+================================================================================
+
+Holding Registers (Function Code 3):
+0-19:   Tank 1 controls (level, temp, pressure)
+20-39:  Tank 2 controls
+40-49:  Pump controls
+50-59:  Valve controls
+60-69:  Setpoints
+70-79:  Alarm thresholds
+80-99:  Reserved
+
+Input Registers (Function Code 4):
+0-9:    Tank 1 sensors
+10-19:  Tank 2 sensors
+20-29:  Flow sensors
+30-39:  Pressure sensors
+40-49:  Temperature sensors
+50-99:  Reserved
+
+Coils (Function Code 1):
+0-9:    Pump on/off
+10-19:  Valve on/off
+20-29:  Alarm outputs
+30-39:  Emergency stops
+40-99:  Reserved
+
+Discrete Inputs (Function Code 2):
+0-9:    Limit switches
+10-19:  Sensor status
+20-29:  Alarm inputs
+30-99:  Reserved
+
+================================================================================
+ALARM CONFIGURATION
+================================================================================
+
+Alarm 1: High Level Tank 1
+- Enabled: Yes
+- Priority: HIGH
+- Setpoint: 90.0%
+- Action: Close inlet valve, sound alarm
+- Auto-acknowledge: No
+
+Alarm 2: Low Level Tank 1
+- Enabled: Yes
+- Priority: MEDIUM
+- Setpoint: 10.0%
+- Action: Stop pump, sound alarm
+- Auto-acknowledge: No
+
+Alarm 3: High Temperature
+- Enabled: Yes
+- Priority: HIGH
+- Setpoint: 80.0°C
+- Action: Emergency shutdown, activate cooling
+- Auto-acknowledge: No
+
+Alarm 4: High Pressure
+- Enabled: Yes
+- Priority: CRITICAL
+- Setpoint: 150.0 kPa
+- Action: Open relief valve, emergency shutdown
+- Auto-acknowledge: No
+
+================================================================================
+LADDER LOGIC SUMMARY
+================================================================================
+
+Rung 1: Tank Level Control
+- IF Tank1_Level < Setpoint-5%
+- THEN Start Pump1
+- ELSE IF Tank1_Level > Setpoint+5%
+- THEN Stop Pump1
+
+Rung 2: High Level Interlock
+- IF Tank1_Level > 90%
+- THEN Close Inlet_Valve
+- AND Sound High_Level_Alarm
+
+Rung 3: Low Level Interlock
+- IF Tank1_Level < 10%
+- THEN Stop All_Pumps
+- AND Sound Low_Level_Alarm
+
+Rung 4: Emergency Shutdown
+- IF Tank1_Level > 95%
+- OR High_Pressure_Alarm
+- OR Emergency_Stop_Button
+- THEN Execute Emergency_Shutdown
+
+Rung 5: Pump Protection
+- IF Pump1_Running AND (Tank1_Level < 5%)
+- THEN Stop Pump1 (Prevent dry run)
+
+================================================================================
+COMMUNICATION LOG (Last 100 Entries)
+================================================================================
+
+2024-12-01 02:59:45 | 192.168.100.20 | Read Holding Registers | Addr:0 Count:20 | SUCCESS
+2024-12-01 02:59:46 | 192.168.100.20 | Read Input Registers | Addr:0 Count:10 | SUCCESS
+2024-12-01 02:59:50 | 192.168.50.10 | Read Holding Registers | Addr:0 Count:50 | SUCCESS
+2024-12-01 02:59:55 | 192.168.100.30 | Write Single Register | Addr:60 Value:55 | SUCCESS
+2024-12-01 03:00:00 | 192.168.100.30 | Read Holding Registers | Addr:0 Count:100 | SUCCESS
+2024-12-01 03:00:01 | 192.168.1.100 | Read Holding Registers | Addr:0 Count:20 | SUCCESS (SUSPICIOUS!)
+2024-12-01 03:00:02 | 192.168.100.99 | Read Holding Registers | Addr:0 Count:20 | TIMEOUT
+2024-12-01 03:00:03 | 192.168.100.99 | Read Holding Registers | Addr:0 Count:20 | TIMEOUT
+2024-12-01 03:00:04 | 192.168.100.99 | Read Holding Registers | Addr:0 Count:20 | TIMEOUT
+
+NOTE: Device 192.168.100.99 causing excessive traffic
+NOTE: Unexpected access from 192.168.1.100 (CorpNet) - firewall bypass?
+
+================================================================================
+SECURITY NOTES
+================================================================================
+
+1. No authentication enabled on Modbus (industry standard, but risky)
+2. Web interface using default admin/admin credentials
+3. No encryption on communications
+4. Configuration backup stored in unprotected file share
+5. Accessible from CorpNet due to firewall misconfiguration
+6. No rate limiting on Modbus requests
+7. No intrusion detection on this PLC
+8. Password hashes are MD5 (weak, easily cracked)
+
+RECOMMENDATION: Enable authentication, use secure passwords, implement network segmentation
+
+================================================================================
+MAINTENANCE HISTORY
+================================================================================
+
+2024-11-30: Firmware updated from v0.9.5 to v1.0.0
+2024-11-15: Replaced faulty level sensor
+2024-11-01: Performed annual calibration
+2024-10-15: Updated ladder logic (Rung 5 added)
+2024-10-01: Password reset for 'engineer' account
+
+Next Scheduled Maintenance: 2025-01-15
+
+================================================================================
+VENDOR INFORMATION
+================================================================================
+
+Manufacturer: VulnPLC Corporation
+Support Email: support@vulnplc.com
+Support Phone: 1-800-VULNPLC
+Service Contract: Active until 2025-12-31
+Warranty: 2 years (expires 2025-06-30)
+
+Authorized Service Centers:
+- AutomationCorp (Houston, TX)
+- Industrial Controls Inc (Dallas, TX)
+- SCADA Services LLC (Austin, TX)
+
+================================================================================
+END OF BACKUP FILE
+================================================================================
+
+** This file was found on: **
+- Public FTP server (ftp://ftp.chemicalplant.com/pub/backups/)
+- Unsecured file share (\\192.168.1.20\PLC_Backups\)
+- GitHub repository (deleted but archived)
+- Employee laptop stolen from car (Nov 20, 2024)
+
+** CRITICAL SECURITY ISSUE **
+This backup contains sensitive information including:
+- Default credentials
+- Network topology
+- Register maps
+- Process control logic
+- Communication logs showing suspicious activity
+
+An attacker with this information can:
+1. Access the PLC using default credentials
+2. Manipulate process values via Modbus
+3. Trigger alarms and shutdowns
+4. Understand the entire process control system
+5. Plan targeted attacks on critical infrastructure

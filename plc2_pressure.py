@@ -1,0 +1,271 @@
+#!/usr/bin/env python3
+"""
+PLC-2: Pressure Control System - Web Interface
+Port 5011
+
+INTENTIONALLY VULNERABLE - For security testing only
+Vulnerabilities: Authentication bypass, buffer overflow simulation, replay attacks
+"""
+
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+import sqlite3
+import hashlib
+import time
+from datetime import datetime
+import shared_state
+
+app = Flask(__name__)
+app.secret_key = 'plc2-weak-secret-999'  # Intentionally weak
+
+# Initialize shared state
+shared_state.init_state()
+
+# VULNERABILITY: Weak authentication
+HARDCODED_CREDS = {
+    'engineer': 'plc2pass',
+    'operator': 'pressure123',
+    'admin': 'admin'
+}
+
+def get_plc2_state():
+    """Get PLC-2 state from shared storage"""
+    state = shared_state.load_state()
+    plc2_state = {}
+    for key, value in state.items():
+        if key.startswith('plc2_'):
+            plc2_state[key.replace('plc2_', '')] = value
+    return plc2_state
+
+@app.route('/')
+def index():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return redirect(url_for('dashboard'))
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """VULNERABILITY: Authentication bypass via timing attack"""
+    error = None
+    if request.method == 'POST':
+        username = request.form.get('username', '')
+        password = request.form.get('password', '')
+
+        # VULNERABILITY: Timing attack - check username first
+        if username in HARDCODED_CREDS:
+            time.sleep(0.1)  # Intentional delay reveals valid usernames
+            if HARDCODED_CREDS[username] == password:
+                session['username'] = username
+                session['plc_id'] = 2
+                return redirect(url_for('dashboard'))
+            else:
+                error = 'Invalid password'
+        else:
+            error = 'Invalid credentials'
+
+        # VULNERABILITY: Weak session - can be bypassed
+        # Try authentication bypass via header injection
+        auth_bypass = request.headers.get('X-PLC-Auth-Override')
+        if auth_bypass == 'bypass-plc2-auth':
+            session['username'] = 'admin'
+            session['plc_id'] = 2
+            return redirect(url_for('dashboard'))
+
+    return render_template('plc2_login.html', error=error)
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
+@app.route('/dashboard')
+def dashboard():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    plc_state = get_plc2_state()
+    return render_template('plc2_dashboard.html',
+                          username=session['username'],
+                          state=plc_state)
+
+@app.route('/api/status')
+def api_status():
+    """Get current PLC-2 status"""
+    plc_state = get_plc2_state()
+    return jsonify({
+        'plc_id': 2,
+        'name': 'Pressure Control System',
+        'status': 'running',
+        'state': plc_state
+    })
+
+@app.route('/api/control', methods=['POST'])
+def api_control():
+    """VULNERABILITY: No authentication check on control endpoint"""
+    # VULNERABILITY: Missing authentication
+    # if 'username' not in session:
+    #     return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.get_json() or request.form.to_dict()
+    action = data.get('action')
+    value = data.get('value')
+
+    # Update state in shared storage
+    if action == 'compressor_1_status':
+        shared_state.update_state('plc2_compressor_1_status', value in ['true', 'True', True, 1, '1'])
+    elif action == 'compressor_2_status':
+        shared_state.update_state('plc2_compressor_2_status', value in ['true', 'True', True, 1, '1'])
+    elif action == 'compressor_1_speed':
+        shared_state.update_state('plc2_compressor_1_speed', int(value))
+    elif action == 'compressor_2_speed':
+        shared_state.update_state('plc2_compressor_2_speed', int(value))
+    elif action == 'relief_valve_1':
+        shared_state.update_state('plc2_relief_valve_1', value in ['true', 'True', True, 1, '1'])
+    elif action == 'relief_valve_2':
+        shared_state.update_state('plc2_relief_valve_2', value in ['true', 'True', True, 1, '1'])
+    elif action == 'emergency_vent':
+        shared_state.update_state('plc2_emergency_vent', value in ['true', 'True', True, 1, '1'])
+
+    return jsonify({'success': True, 'action': action, 'value': value})
+
+@app.route('/api/replay', methods=['POST'])
+def api_replay():
+    """VULNERABILITY: Replay attack endpoint - stores and replays commands"""
+    data = request.get_json()
+    mode = data.get('mode', 'record')
+
+    if mode == 'record':
+        # Record a command sequence
+        commands = data.get('commands', [])
+        replay_id = hashlib.md5(str(time.time()).encode()).hexdigest()[:8]
+        shared_state.update_state(f'replay_{replay_id}', commands)
+        return jsonify({'success': True, 'replay_id': replay_id})
+
+    elif mode == 'playback':
+        # Playback recorded commands (VULNERABILITY: No validation)
+        replay_id = data.get('replay_id')
+        commands = shared_state.get_state(f'replay_{replay_id}', [])
+
+        for cmd in commands:
+            # Execute each command without validation
+            shared_state.update_state(f'plc2_{cmd["action"]}', cmd['value'])
+
+        return jsonify({'success': True, 'commands_executed': len(commands)})
+
+    return jsonify({'error': 'Invalid mode'}), 400
+
+@app.route('/api/buffer', methods=['POST'])
+def api_buffer():
+    """VULNERABILITY: Simulated buffer overflow"""
+    data = request.form.get('data', '')
+
+    # VULNERABILITY: No size checking (simulated overflow)
+    if len(data) > 256:
+        # Simulate memory corruption
+        return jsonify({
+            'error': 'Buffer overflow detected',
+            'message': 'Memory corruption - safety systems disabled',
+            'corrupted_registers': [0, 1, 2, 3, 4, 5],
+            'vulnerability': 'CVE-2024-FAKE-OVERFLOW'
+        }), 500
+
+    return jsonify({'success': True, 'data_length': len(data)})
+
+@app.route('/api/firmware/info')
+def firmware_info():
+    """VULNERABILITY: Information disclosure"""
+    return jsonify({
+        'firmware_version': '1.2.3',
+        'build_date': '2024-01-15',
+        'checksum': 'abc123def456',  # Weak checksum
+        'debug_enabled': True,
+        'backdoor_port': 5555,  # Easter egg
+        'encryption': 'none',
+        'vendor': 'VulnPLC Corp',
+        'secret_key': app.secret_key
+    })
+
+@app.route('/api/diagnostic', methods=['POST'])
+def diagnostic():
+    """VULNERABILITY: Command injection via diagnostic interface"""
+    if 'username' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    command = request.form.get('command', '')
+
+    # VULNERABILITY: Limited command injection
+    allowed_commands = ['status', 'version', 'uptime', 'config']
+
+    if command in allowed_commands:
+        # Simulate command output
+        outputs = {
+            'status': 'PLC-2 Online - Pressure System Nominal',
+            'version': 'VulnPLC v1.2.3',
+            'uptime': '42 days, 13 hours',
+            'config': 'Config: pressure_max=150, safety_override=enabled'
+        }
+        return jsonify({'output': outputs.get(command, 'Unknown command')})
+
+    # VULNERABILITY: Special commands with side effects
+    if command == 'reset_safety':
+        shared_state.update_state('plc2_safety_disabled', True)
+        return jsonify({'output': 'WARNING: Safety systems disabled!'})
+
+    if command.startswith('set_'):
+        # VULNERABILITY: Arbitrary state modification
+        parts = command.split('_', 2)
+        if len(parts) >= 3:
+            key = parts[1]
+            value = parts[2]
+            shared_state.update_state(f'plc2_{key}', value)
+            return jsonify({'output': f'Set {key} = {value}'})
+
+    return jsonify({'error': 'Invalid command'}), 400
+
+@app.route('/api/logs')
+def api_logs():
+    """Get PLC-2 logs (limited history)"""
+    if 'username' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    # Simulate log entries
+    logs = [
+        {'timestamp': '2024-12-07 10:15:32', 'level': 'INFO', 'message': 'Compressor 1 started'},
+        {'timestamp': '2024-12-07 10:16:45', 'level': 'WARN', 'message': 'Pressure vessel 1 approaching limit'},
+        {'timestamp': '2024-12-07 10:17:12', 'level': 'INFO', 'message': 'Relief valve 1 opened'},
+        {'timestamp': '2024-12-07 10:18:00', 'level': 'INFO', 'message': 'Pressure normalized'},
+    ]
+
+    return jsonify({'logs': logs})
+
+# Create necessary templates directory
+import os
+os.makedirs('templates', exist_ok=True)
+
+if __name__ == '__main__':
+    print("""
+    ╔═══════════════════════════════════════════════════════════╗
+    ║  PLC-2: Pressure Control System                           ║
+    ║  FOR SECURITY TESTING AND EDUCATION ONLY                  ║
+    ╚═══════════════════════════════════════════════════════════╝
+
+    Default Credentials:
+      engineer / plc2pass
+      operator / pressure123
+      admin / admin
+
+    Web Interface: http://localhost:5011
+    Modbus TCP:    localhost:5503
+
+    Known Vulnerabilities:
+      • Timing attack in authentication
+      • Authentication bypass via header injection
+      • Replay attack vulnerability
+      • Buffer overflow (simulated)
+      • Information disclosure
+      • Missing authentication on control endpoints
+      • Command injection in diagnostic interface
+
+    WARNING: DO NOT EXPOSE TO INTERNET
+    """)
+
+    app.run(host='0.0.0.0', port=5011, debug=True)

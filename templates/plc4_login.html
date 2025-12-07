@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PLC-4: Safety System Login</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #c62828 0%, #b71c1c 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .login-container {
+            background: #fff;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            width: 350px;
+            border: 3px solid #ff9800;
+        }
+        h1 {
+            color: #c62828;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+        .plc-id {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 20px;
+        }
+        .warning-banner {
+            background: #ff9800;
+            color: #000;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #c62828;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #b71c1c;
+        }
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff3e0;
+            border-radius: 5px;
+            font-size: 12px;
+            border-left: 4px solid #ff9800;
+        }
+        .vuln-hint {
+            color: #c62828;
+            font-size: 11px;
+            margin-top: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="warning-banner">⚠️ SAFETY CRITICAL SYSTEM ⚠️</div>
+        <h1>🛡️ PLC-4 Access</h1>
+        <div class="plc-id">Emergency Shutdown System</div>
+
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST">
+            <input type="text" name="username" placeholder="Username" required autocomplete="off">
+            <input type="password" name="password" placeholder="Password" required autocomplete="off">
+            <button type="submit">LOGIN TO SAFETY SYSTEM</button>
+        </form>
+
+        <div class="info">
+            <strong>System Information:</strong><br>
+            Model: VulnPLC-4000-ESD<br>
+            Firmware: v3.0.1<br>
+            Port: 5013 (HTTP) / 5505 (Modbus)<br>
+            Status: <span style="color: #4caf50; font-weight: bold;">ARMED</span>
+        </div>
+
+        <div class="vuln-hint">
+            Hint: Try timing attacks or guess the override code
+        </div>
+    </div>
+</body>
+</html>

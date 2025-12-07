@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PLC-4: Safety/ESD Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+        }
+        .header {
+            background: linear-gradient(135deg, #c62828 0%, #b71c1c 100%);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            border-bottom: 3px solid #ff9800;
+        }
+        .header h1 { font-size: 24px; }
+        .container {
+            padding: 30px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        .alert-banner {
+            background: #ff9800;
+            color: #000;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            font-size: 18px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .card {
+            background: #1a1a1a;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            border: 1px solid #333;
+        }
+        .card.critical {
+            border: 2px solid #ff9800;
+            background: rgba(255, 152, 0, 0.05);
+        }
+        .card h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #ff6b6b;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-indicator.on { background: #4caf50; }
+        .status-indicator.off { background: #666; }
+        .status-indicator.alarm { background: #f44336; animation: blink 1s infinite; }
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+        .estop-button {
+            width: 100%;
+            padding: 30px;
+            background: #f44336;
+            color: white;
+            border: 5px solid #d32f2f;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 24px;
+            font-weight: bold;
+            margin: 15px 0;
+            text-transform: uppercase;
+        }
+        .estop-button:hover {
+            background: #d32f2f;
+            transform: scale(1.02);
+        }
+        .estop-button:active {
+            transform: scale(0.98);
+        }
+        button {
+            padding: 10px 20px;
+            background: #1e88e5;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #1565c0; }
+        button.danger { background: #f44336; }
+        button.danger:hover { background: #d32f2f; }
+        button.warning { background: #ff9800; }
+        button.warning:hover { background: #f57c00; }
+        .control-group {
+            margin: 15px 0;
+            padding: 10px;
+            background: #0a0a0a;
+            border-radius: 5px;
+        }
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #b0bec5;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            background: #333;
+            border: 1px solid #555;
+            color: #fff;
+            border-radius: 5px;
+        }
+        .alarm-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .alarm-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: rgba(244, 67, 54, 0.2);
+            border-left: 4px solid #f44336;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🛡️ PLC-4: Safety/Emergency Shutdown System</h1>
+        <div>User: {{ username }} | <a href="/logout" style="color: white;">Logout</a></div>
+    </div>
+
+    <div class="container">
+        <div id="master-alarm" style="display: none;">
+            <div class="alert-banner">
+                ⚠️ MASTER EMERGENCY STOP ACTIVATED ⚠️
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- Emergency Stops -->
+            <div class="card critical">
+                <h2>Emergency Stops</h2>
+                <button class="estop-button" onclick="triggerEmergencyStop()">
+                    ⏹️ MASTER EMERGENCY STOP
+                </button>
+                <div class="control-group">
+                    <div style="margin: 10px 0;">
+                        <span class="status-indicator" id="estop1-status"></span>
+                        E-Stop 1: <span id="estop1-text">NORMAL</span>
+                    </div>
+                    <div style="margin: 10px 0;">
+                        <span class="status-indicator" id="estop2-status"></span>
+                        E-Stop 2: <span id="estop2-text">NORMAL</span>
+                    </div>
+                    <div style="margin: 10px 0;">
+                        <span class="status-indicator" id="estop3-status"></span>
+                        E-Stop 3: <span id="estop3-text">NORMAL</span>
+                    </div>
+                </div>
+                <button onclick="resetAllAlarms()">Reset All Alarms</button>
+            </div>
+
+            <!-- Safety Interlocks -->
+            <div class="card">
+                <h2>Safety Interlocks</h2>
+                <div class="control-group">
+                    <div style="margin: 10px 0;">
+                        <span class="status-indicator" id="interlock1-status"></span>
+                        Interlock 1: <span id="interlock1-text">SAFE</span>
+                    </div>
+                    <div style="margin: 10px 0;">
+                        <span class="status-indicator" id="interlock2-status"></span>
+                        Interlock 2: <span id="interlock2-text">SAFE</span>
+                    </div>
+                    <div style="margin: 10px 0;">
+                        <span class="status-indicator" id="interlock3-status"></span>
+                        Interlock 3: <span id="interlock3-text">SAFE</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fire Detection -->
+            <div class="card">
+                <h2>Fire Detection & Suppression</h2>
+                <div class="control-group">
+                    <div style="margin: 10px 0;">
+                        <span class="status-indicator" id="fire1-status"></span>
+                        Zone 1: <span id="fire1-text">NORMAL</span>
+                    </div>
+                    <div style="margin: 10px 0;">
+                        <span class="status-indicator" id="fire2-status"></span>
+                        Zone 2: <span id="fire2-text">NORMAL</span>
+                    </div>
+                    <div style="margin: 10px 0;">
+                        <span class="status-indicator" id="fire3-status"></span>
+                        Zone 3: <span id="fire3-text">NORMAL</span>
+                    </div>
+                    <div style="margin: 10px 0;">
+                        <span class="status-indicator" id="suppression-status"></span>
+                        Suppression: <span id="suppression-text">STANDBY</span>
+                    </div>
+                </div>
+                <button class="warning" onclick="simulateIncident('fire')">Simulate Fire</button>
+            </div>
+
+            <!-- Gas Detection -->
+            <div class="card">
+                <h2>Gas Detection</h2>
+                <div class="control-group">
+                    <div style="margin: 10px 0;">
+                        <span class="status-indicator" id="gas1-status"></span>
+                        Zone 1: <span id="gas1-text">NORMAL</span>
+                    </div>
+                    <div style="margin: 10px 0;">
+                        <span class="status-indicator" id="gas2-status"></span>
+                        Zone 2: <span id="gas2-text">NORMAL</span>
+                    </div>
+                    <div style="margin: 10px 0;">
+                        <span class="status-indicator" id="evacuation-status"></span>
+                        Evacuation Alarm: <span id="evacuation-text">INACTIVE</span>
+                    </div>
+                </div>
+                <button class="warning" onclick="simulateIncident('gas')">Simulate Gas Leak</button>
+            </div>
+
+            <!-- System Status -->
+            <div class="card">
+                <h2>System Status</h2>
+                <div class="control-group">
+                    <div style="margin: 10px 0;">
+                        <span class="status-indicator" id="watchdog-status"></span>
+                        Watchdog: <span id="watchdog-text">ENABLED</span>
+                    </div>
+                    <div style="margin: 10px 0;">
+                        <span class="status-indicator" id="health-status"></span>
+                        System Health: <span id="health-text">HEALTHY</span>
+                    </div>
+                    <div style="margin: 10px 0;">
+                        Critical Alarms: <span id="alarm-count">0</span>
+                    </div>
+                </div>
+                <button onclick="resetWatchdog()">Reset Watchdog</button>
+            </div>
+
+            <!-- Dangerous Controls -->
+            <div class="card critical">
+                <h2>⚠️ Advanced Controls</h2>
+                <div class="control-group">
+                    <label>Safety Override Code:</label>
+                    <input type="text" id="override-code" placeholder="Enter 4-digit code">
+                    <button class="danger" onclick="submitOverride()">Submit Override</button>
+                </div>
+                <div style="margin-top: 15px;">
+                    <button class="danger" onclick="enableSafetyBypass()">Enable Safety Bypass</button>
+                    <button class="warning" onclick="simulateIncident('multiple')">Simulate Multiple Incidents</button>
+                </div>
+                <p style="margin-top: 10px; font-size: 11px; color: #ff9800;">
+                    ⚠️ These controls can disable safety systems. Use with extreme caution!
+                </p>
+            </div>
+        </div>
+
+        <!-- Alarm Log -->
+        <div class="card">
+            <h2>Recent Alarms</h2>
+            <div class="alarm-list" id="alarm-log"></div>
+        </div>
+    </div>
+
+    <script>
+        function updateStatus() {
+            fetch('/api/status')
+                .then(r => r.json())
+                .then(data => {
+                    const state = data.state;
+
+                    // Master emergency stop banner
+                    if (state.master_emergency_stop) {
+                        document.getElementById('master-alarm').style.display = 'block';
+                    } else {
+                        document.getElementById('master-alarm').style.display = 'none';
+                    }
+
+                    // Emergency stops
+                    updateIndicator('estop1', state.emergency_stop_1, 'ACTIVE', 'NORMAL');
+                    updateIndicator('estop2', state.emergency_stop_2, 'ACTIVE', 'NORMAL');
+                    updateIndicator('estop3', state.emergency_stop_3, 'ACTIVE', 'NORMAL');
+
+                    // Safety interlocks
+                    updateIndicator('interlock1', state.safety_interlock_1, 'SAFE', 'UNSAFE', true);
+                    updateIndicator('interlock2', state.safety_interlock_2, 'SAFE', 'UNSAFE', true);
+                    updateIndicator('interlock3', state.safety_interlock_3, 'SAFE', 'UNSAFE', true);
+
+                    // Fire detection
+                    updateIndicator('fire1', state.fire_detection_zone1, 'FIRE!', 'NORMAL');
+                    updateIndicator('fire2', state.fire_detection_zone2, 'FIRE!', 'NORMAL');
+                    updateIndicator('fire3', state.fire_detection_zone3, 'FIRE!', 'NORMAL');
+                    updateIndicator('suppression', state.fire_suppression_active, 'ACTIVE', 'STANDBY');
+
+                    // Gas detection
+                    updateIndicator('gas1', state.gas_detection_zone1, 'GAS!', 'NORMAL');
+                    updateIndicator('gas2', state.gas_detection_zone2, 'GAS!', 'NORMAL');
+                    updateIndicator('evacuation', state.evacuation_alarm, 'EVACUATE!', 'INACTIVE');
+
+                    // System status
+                    updateIndicator('watchdog', state.watchdog_enabled, 'ENABLED', 'DISABLED', true);
+                    updateIndicator('health', state.system_healthy, 'HEALTHY', 'FAULT', true);
+
+                    document.getElementById('alarm-count').textContent = state.critical_alarm_count || 0;
+                });
+        }
+
+        function updateIndicator(id, state, onText, offText, invertAlarm = false) {
+            const statusElem = document.getElementById(id + '-status');
+            const textElem = document.getElementById(id + '-text');
+
+            statusElem.className = 'status-indicator';
+            if (state) {
+                statusElem.classList.add(invertAlarm ? 'on' : 'alarm');
+                textElem.textContent = onText;
+            } else {
+                statusElem.classList.add(invertAlarm ? 'alarm' : 'off');
+                textElem.textContent = offText;
+            }
+        }
+
+        function triggerEmergencyStop() {
+            if (confirm('Trigger MASTER EMERGENCY STOP? This will shut down ALL systems!')) {
+                fetch('/api/emergency_shutdown', {
+                    method: 'POST'
+                }).then(r => r.json()).then(data => {
+                    alert(data.message);
+                    updateStatus();
+                });
+            }
+        }
+
+        function resetAllAlarms() {
+            fetch('/api/control', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action: 'reset_all_alarms', value: true})
+            }).then(() => updateStatus());
+        }
+
+        function resetWatchdog() {
+            fetch('/api/control', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action: 'reset_watchdog', value: true})
+            }).then(() => alert('Watchdog reset'));
+        }
+
+        function submitOverride() {
+            const code = document.getElementById('override-code').value;
+            const formData = new FormData();
+            formData.append('code', code);
+
+            fetch('/api/safety_override', {
+                method: 'POST',
+                body: formData
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    alert(data.message + '\n\n' + data.warning);
+                } else {
+                    alert('Override failed: ' + (data.error || 'Unknown error') + '\n' + (data.hint || ''));
+                }
+            });
+        }
+
+        function enableSafetyBypass() {
+            if (confirm('Enable SAFETY BYPASS MODE? This will disable ALL safety systems!')) {
+                fetch('/api/control', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({action: 'safety_bypass_mode', value: true})
+                }).then(r => r.json()).then(data => {
+                    alert(data.warning || 'Safety bypass enabled');
+                });
+            }
+        }
+
+        function simulateIncident(type) {
+            const formData = new FormData();
+            formData.append('type', type);
+
+            fetch('/api/simulate_incident', {
+                method: 'POST',
+                body: formData
+            }).then(r => r.json()).then(data => {
+                alert('Incident simulated: ' + data.incident);
+                updateStatus();
+            });
+        }
+
+        setInterval(updateStatus, 1000);
+        updateStatus();
+    </script>
+</body>
+</html>

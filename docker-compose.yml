@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  vulnerable-plc:
+    build: .
+    container_name: vulnerable_plc
+    ports:
+      - "5000:5000"  # Web interface
+      - "5502:5502"  # Modbus TCP
+    volumes:
+      - ./data:/app/data
+    environment:
+      - FLASK_ENV=development
+    restart: unless-stopped
+    networks:
+      - plc_network
+
+networks:
+  plc_network:
+    driver: bridge

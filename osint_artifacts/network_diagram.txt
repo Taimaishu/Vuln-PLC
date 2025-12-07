@@ -1,0 +1,119 @@
+# INTERNAL USE ONLY - Network Diagram
+# Chemical Processing Plant - Control System Network
+# Created: 2024-01-15
+# Author: J. Smith (jsmith@chemicalplant.com)
+
+================================================================================
+NETWORK TOPOLOGY
+================================================================================
+
+Corporate Network (192.168.1.0/24)
+├── Email Server: 192.168.1.10
+├── File Server: 192.168.1.20
+├── Printer: 192.168.1.30
+└── Employee Laptops: 192.168.1.100-150
+
+DMZ (192.168.50.0/24)
+├── Web Portal: 192.168.50.20 (https://portal.chemicalplant.com)
+├── Historian: 192.168.50.10
+│   └── Default Creds: historian/data123
+└── External Access Gateway: 192.168.50.1
+
+OT Network (192.168.100.0/24) - CRITICAL SYSTEMS
+├── HMI Server: 192.168.100.20
+│   ├── Web Interface: http://192.168.100.20:5000
+│   └── Default Creds: admin/admin
+├── Engineering Workstation: 192.168.100.30
+│   ├── Username: engineer
+│   └── Password: ChemPlant2024!
+├── PLC-1 (Tank Control): 192.168.100.10
+│   ├── Modbus TCP: 502
+│   └── Web Interface: http://192.168.100.10:5010
+├── PLC-2 (Pressure System): 192.168.100.11
+│   ├── Modbus TCP: 502
+│   └── Web Interface: http://192.168.100.11:5011
+├── PLC-3 (Temperature Control): 192.168.100.12
+│   ├── Modbus TCP: 502
+│   └── Web Interface: http://192.168.100.12:5012
+├── PLC-4 (Safety/ESD): 192.168.100.13
+│   ├── Modbus TCP: 502
+│   ├── Web Interface: http://192.168.100.13:5013
+│   └── Safety Override Code: 1234
+└── Unknown Device: 192.168.100.99 (causing network issues)
+
+================================================================================
+FIREWALL RULES (Palo Alto PA-220)
+================================================================================
+
+NOTE: Firewall rules need updating - currently too permissive!
+TODO: Implement proper segmentation before audit
+
+Current Rules:
+1. CorpNet -> OT Zone: ALLOW ALL (SHOULD BE DENY!)
+2. OT Zone -> CorpNet: ALLOW ALL (SHOULD BE DENY!)
+3. OT Zone -> DMZ: ALLOW ALL
+4. DMZ -> OT Zone: ALLOW ALL (SHOULD BE RESTRICTED!)
+5. Internet -> DMZ: ALLOW HTTPS (port 443)
+
+================================================================================
+VPN ACCESS
+================================================================================
+
+Remote Access VPN: vpn.chemicalplant.com
+├── Certificate-based auth (weak implementation)
+├── Gives direct access to OT network
+└── No MFA required!
+
+VPN Credentials (for contractors):
+- Vendor: Rockwell
+  Username: rockwell_support
+  Password: Automation2024
+
+- Vendor: Siemens
+  Username: siemens_tech
+  Password: S1em3ns!
+
+================================================================================
+KNOWN ISSUES
+================================================================================
+
+1. Device 192.168.100.99 spamming network - needs investigation
+2. Firewall rules too permissive - security audit pending
+3. No network segmentation between Corp and OT
+4. Default passwords still in use on several systems
+5. No IDS/IPS deployed on OT network
+6. Historian accessible from CorpNet (should be restricted)
+7. Safety Override Code (1234) needs to be changed
+
+================================================================================
+EMERGENCY CONTACTS
+================================================================================
+
+Plant Manager: Mike Johnson (mjohnson@chemicalplant.com)
+Lead Engineer: Sarah Chen (schen@chemicalplant.com)
+IT Security: Dave Miller (dmiller@chemicalplant.com) - ext 5555
+Control Systems Integrator: AutomationCorp - 1-800-ICS-HELP
+
+================================================================================
+BACKUP INFORMATION
+================================================================================
+
+PLC Backup Server: \\192.168.1.20\PLC_Backups
+├── Weekly automated backups
+├── No encryption (file share accessible to all)
+└── Contains PLC logic, configurations, and HMI screens
+
+Last Full Backup: 2024-12-01
+Next Scheduled Backup: 2024-12-08
+
+================================================================================
+NOTES
+================================================================================
+
+- This network diagram was accidentally uploaded to public GitHub repo
+  (https://github.com/chemicalplant-ops/docs) on 2024-03-15
+- Removed after 2 weeks but may have been cached/archived
+- Check if sensitive data was exposed in commit history
+- Shodan shows our web portal is indexed: "chemicalplant.com HMI"
+
+** DO NOT SHARE OUTSIDE ORGANIZATION **

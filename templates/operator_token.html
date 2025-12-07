@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Token - VulnPLC-3000</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+        }
+        .navbar {
+            background: #2c3e50;
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .navbar h1 { font-size: 20px; }
+        .navbar a { color: white; text-decoration: none; margin-left: 20px; }
+        .container {
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .card h2 {
+            margin-bottom: 20px;
+            color: #2c3e50;
+            border-bottom: 2px solid #34495e;
+            padding-bottom: 10px;
+        }
+        .token-box {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            border: 2px dashed #dee2e6;
+            margin: 20px 0;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            color: #2c3e50;
+        }
+        .info-box {
+            background: #e8f4f8;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3498db;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+            color: #856404;
+        }
+        button {
+            padding: 12px 30px;
+            background: #34495e;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover { background: #2c3e50; }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        .detail-row {
+            padding: 10px;
+            border-bottom: 1px solid #ecf0f1;
+            display: flex;
+            justify-content: space-between;
+        }
+        .detail-label {
+            font-weight: 500;
+            color: #7f8c8d;
+        }
+        .detail-value {
+            font-family: 'Courier New', monospace;
+            color: #2c3e50;
+        }
+        .copy-btn {
+            background: #1abc9c;
+            padding: 8px 15px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .copy-btn:hover {
+            background: #16a085;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <h1>🔑 API Token Generator</h1>
+        <div>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/operator/logs">My Logs</a>
+            <a href="/logout">Logout</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h2>Your API Token</h2>
+
+            <div class="info-box">
+                <strong>💡 Info:</strong> Use this token to authenticate API requests to the VulnPLC-3000 system.
+            </div>
+
+            {% if token_data %}
+            <div class="token-box">
+                {{ token_data.token }}
+                <button class="copy-btn" onclick="copyToken()">📋 Copy Token</button>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <div class="detail-row">
+                    <span class="detail-label">Username:</span>
+                    <span class="detail-value">{{ token_data.username }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Role:</span>
+                    <span class="detail-value">{{ token_data.role }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Generated:</span>
+                    <span class="detail-value">{{ token_data.timestamp }}</span>
+                </div>
+                <div class="detail-row" style="border-bottom: none;">
+                    <span class="detail-label">Format:</span>
+                    <span class="detail-value" style="font-size: 12px;">{{ token_data.hint }}</span>
+                </div>
+            </div>
+            {% else %}
+            <p style="color: #7f8c8d; margin: 20px 0;">No token generated yet. Click the button below to generate a new token.</p>
+            {% endif %}
+
+            <form method="POST" action="/operator/token" style="margin-top: 20px;">
+                <button type="submit">🔄 Generate New Token</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Token Validation</h2>
+
+            <div class="info-box warning">
+                <strong>⚠️ Testing:</strong> Validate tokens to check if they're still active and authorized.
+            </div>
+
+            <form method="POST" action="/operator/validate">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #2c3e50;">Token to Validate</label>
+                    <input type="text" name="token" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-family: 'Courier New', monospace;" placeholder="Enter token..." required>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #2c3e50;">Username</label>
+                    <input type="text" name="username" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" value="{{ username }}" required>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #2c3e50;">Role</label>
+                    <select name="role" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                        <option value="operator" {% if role == 'operator' %}selected{% endif %}>Operator</option>
+                        <option value="admin">Admin</option>
+                        <option value="guest">Guest</option>
+                    </select>
+                </div>
+
+                <button type="submit" style="background: #3498db;">✓ Validate Token</button>
+            </form>
+
+            {% if validation_result %}
+            <div style="background: {% if validation_result.valid %}#d4edda{% else %}#f8d7da{% endif %}; padding: 15px; border-radius: 5px; margin-top: 20px; border-left: 4px solid {% if validation_result.valid %}#28a745{% else %}#dc3545{% endif %};">
+                <strong>{% if validation_result.valid %}✓ Valid Token{% else %}✗ Invalid Token{% endif %}</strong>
+                <p style="margin-top: 5px;">{{ validation_result.message }}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <h2>API Usage Examples</h2>
+
+            <pre style="background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; margin-bottom: 15px;"># Using token in API requests
+curl http://localhost:5000/api/plc/status \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Read register with token
+curl http://localhost:5000/api/plc/read/0 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Write to register with token
+curl -X POST http://localhost:5000/api/plc/write \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d "register=0&value=42"</pre>
+
+            <div class="info-box">
+                <strong>📖 Documentation:</strong> See the API reference for complete endpoint documentation and authentication requirements.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function copyToken() {
+            const tokenText = document.querySelector('.token-box').textContent.trim().split('\n')[0];
+            navigator.clipboard.writeText(tokenText).then(() => {
+                const btn = document.querySelector('.copy-btn');
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Copied!';
+                btn.style.background = '#27ae60';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#1abc9c';
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>

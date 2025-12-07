@@ -1,0 +1,23 @@
+Name,Title,Email,Phone,Department,Badge_ID,Network_Access
+Mike Johnson,Plant Manager,mjohnson@chemicalplant.com,555-0101,Management,BADGE-001,Full
+Sarah Chen,Lead Control Systems Engineer,schen@chemicalplant.com,555-0102,Engineering,BADGE-002,OT Network
+Dave Miller,IT Security Manager,dmiller@chemicalplant.com,555-0103,IT Security,BADGE-003,Full
+John Smith,Automation Engineer,jsmith@chemicalplant.com,555-0104,Engineering,BADGE-004,OT Network
+Emily Davis,Safety Manager,edavis@chemicalplant.com,555-0105,Safety,BADGE-005,OT Network (Read-Only)
+Robert Wilson,Operator Lead,rwilson@chemicalplant.com,555-0106,Operations,BADGE-006,HMI Access
+Lisa Brown,Process Engineer,lbrown@chemicalplant.com,555-0107,Engineering,BADGE-007,OT Network
+James Taylor,Maintenance Technician,jtaylor@chemicalplant.com,555-0108,Maintenance,BADGE-008,Limited
+Maria Garcia,Control Room Operator,mgarcia@chemicalplant.com,555-0109,Operations,BADGE-009,HMI Access
+David Martinez,Instrumentation Tech,dmartinez@chemicalplant.com,555-0110,Maintenance,BADGE-010,OT Network
+Jennifer Lee,Shift Supervisor,jlee@chemicalplant.com,555-0111,Operations,BADGE-011,HMI Access
+Michael Anderson,SCADA Admin,manderson@chemicalplant.com,555-0112,Engineering,BADGE-012,Full (Admin)
+Jessica Thomas,Compliance Officer,jthomas@chemicalplant.com,555-0113,Compliance,BADGE-013,Read-Only
+Christopher Jackson,External Contractor,cjackson@automationcorp.com,555-0114,Contractor,BADGE-C01,OT Network (Temp)
+Amanda White,Rockwell Support,awhite@rockwellautomation.com,555-0115,Vendor,BADGE-V01,VPN Access
+
+# NOTES:
+# - This directory was exposed via unsecured FTP server (ftp.chemicalplant.com)
+# - Badge IDs can be used for physical access (mag stripe readers)
+# - External contractors have VPN credentials stored in password manager
+# - manderson has admin access to ALL systems including PLCs
+# - Common password pattern: FirstnameYear! (e.g., Sarah2024!)

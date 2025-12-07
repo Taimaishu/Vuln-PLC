@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Alarm Management - VulnPLC-3000</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+        }
+        .navbar {
+            background: #2c3e50;
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .navbar h1 { font-size: 20px; }
+        .navbar a { color: white; text-decoration: none; margin-left: 20px; }
+        .container {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .card h2 {
+            margin-bottom: 20px;
+            color: #2c3e50;
+            border-bottom: 2px solid #e74c3c;
+            padding-bottom: 10px;
+        }
+        .alarm-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-box {
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            color: white;
+        }
+        .stat-box.high {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+        .stat-box.medium {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        }
+        .stat-box.low {
+            background: linear-gradient(135deg, #f1c40f 0%, #f39c12 100%);
+        }
+        .stat-box.total {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+        }
+        .stat-box h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+        .stat-box .count {
+            font-size: 48px;
+            font-weight: bold;
+        }
+        .alarm-item {
+            background: white;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border-left: 5px solid #e74c3c;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+        }
+        .alarm-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+        .alarm-item.high {
+            border-left-color: #e74c3c;
+            background: #ffebee;
+        }
+        .alarm-item.medium {
+            border-left-color: #f39c12;
+            background: #fff8e1;
+        }
+        .alarm-item.low {
+            border-left-color: #f1c40f;
+            background: #fffde7;
+        }
+        .alarm-content {
+            flex: 1;
+        }
+        .alarm-content h3 {
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+        .alarm-content .timestamp {
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        .alarm-severity {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .alarm-severity.high {
+            background: #e74c3c;
+            color: white;
+        }
+        .alarm-severity.medium {
+            background: #f39c12;
+            color: white;
+        }
+        .alarm-severity.low {
+            background: #f1c40f;
+            color: #333;
+        }
+        .alarm-actions {
+            margin-left: 20px;
+        }
+        .btn {
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+        .btn.ack {
+            background: #27ae60;
+        }
+        .btn.ack:hover {
+            background: #229954;
+        }
+        .no-alarms {
+            text-align: center;
+            padding: 60px 20px;
+            color: #95a5a6;
+        }
+        .no-alarms i {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        .alarm-sound {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #e74c3c;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <h1>⚠️ Alarm Management System</h1>
+        <div>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/hmi">HMI</a>
+            <a href="/scada">SCADA</a>
+            <a href="/logout">Logout</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h2>Alarm Statistics</h2>
+            <div class="alarm-stats">
+                <div class="stat-box total">
+                    <h3>Total Active</h3>
+                    <div class="count" id="count-total">0</div>
+                </div>
+                <div class="stat-box high">
+                    <h3>High Priority</h3>
+                    <div class="count" id="count-high">0</div>
+                </div>
+                <div class="stat-box medium">
+                    <h3>Medium Priority</h3>
+                    <div class="count" id="count-medium">0</div>
+                </div>
+                <div class="stat-box low">
+                    <h3>Low Priority</h3>
+                    <div class="count" id="count-low">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Active Alarms</h2>
+            <div id="alarms-list">
+                <div class="no-alarms">
+                    <div style="font-size: 64px;">✓</div>
+                    <h3>No Active Alarms</h3>
+                    <p>All systems operating normally</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="alarm-indicator" class="alarm-sound" style="display: none;">
+        🔔 ALARM ACTIVE
+    </div>
+
+    <script>
+        function updateAlarms() {
+            fetch('/api/alarms/list')
+                .then(r => r.json())
+                .then(data => {
+                    const alarms = data.alarms;
+
+                    // Update counts
+                    document.getElementById('count-total').textContent = alarms.length;
+                    document.getElementById('count-high').textContent =
+                        alarms.filter(a => a.severity === 'HIGH').length;
+                    document.getElementById('count-medium').textContent =
+                        alarms.filter(a => a.severity === 'MEDIUM').length;
+                    document.getElementById('count-low').textContent =
+                        alarms.filter(a => a.severity === 'LOW').length;
+
+                    // Update alarm list
+                    const listDiv = document.getElementById('alarms-list');
+
+                    if (alarms.length === 0) {
+                        listDiv.innerHTML = `
+                            <div class="no-alarms">
+                                <div style="font-size: 64px;">✓</div>
+                                <h3>No Active Alarms</h3>
+                                <p>All systems operating normally</p>
+                            </div>
+                        `;
+                        document.getElementById('alarm-indicator').style.display = 'none';
+                    } else {
+                        listDiv.innerHTML = alarms.map(alarm => `
+                            <div class="alarm-item ${alarm.severity.toLowerCase()}">
+                                <div class="alarm-content">
+                                    <h3>${alarm.message}</h3>
+                                    <div class="timestamp">⏰ ${alarm.timestamp}</div>
+                                </div>
+                                <span class="alarm-severity ${alarm.severity.toLowerCase()}">${alarm.severity}</span>
+                                <div class="alarm-actions">
+                                    <button class="btn ack" onclick="acknowledgeAlarm(${alarm.id})">Acknowledge</button>
+                                </div>
+                            </div>
+                        `).join('');
+
+                        // Show alarm indicator if critical alarms exist
+                        if (alarms.some(a => a.severity === 'HIGH')) {
+                            document.getElementById('alarm-indicator').style.display = 'block';
+                        } else {
+                            document.getElementById('alarm-indicator').style.display = 'none';
+                        }
+                    }
+                });
+        }
+
+        function acknowledgeAlarm(alarmId) {
+            fetch('/api/alarms/acknowledge', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({id: alarmId})
+            })
+            .then(r => r.json())
+            .then(data => {
+                updateAlarms();
+            });
+        }
+
+        // Update every 2 seconds
+        setInterval(updateAlarms, 2000);
+        updateAlarms();
+    </script>
+</body>
+</html>

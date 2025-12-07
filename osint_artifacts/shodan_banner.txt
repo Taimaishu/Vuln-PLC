@@ -1,0 +1,189 @@
+# Shodan Search Results for "chemicalplant.com"
+# Last Indexed: 2024-12-05
+# Source: Shodan.io Internet-wide scan
+
+================================================================================
+HOST: 203.0.113.50 (portal.chemicalplant.com)
+================================================================================
+
+IP: 203.0.113.50
+Hostnames: portal.chemicalplant.com
+Organization: Chemical Plant Operations LLC
+Country: United States
+City: Houston, Texas
+
+PORT: 443/tcp (HTTPS)
+Service: HTTP/HTTPS
+Banner:
+HTTP/1.1 200 OK
+Server: nginx/1.18.0
+Date: Thu, 05 Dec 2024 10:15:32 GMT
+Content-Type: text/html; charset=UTF-8
+X-Powered-By: Flask/2.0.1
+X-Frame-Options: DENY
+Title: Chemical Plant - HMI Portal
+Cookies: session=eyJ1c2VybmFtZSI6ImFkbWluIn0...
+
+Vulnerabilities:
+- CVE-2021-44228 (Log4Shell) - Possible
+- Weak SSL/TLS Configuration
+- Default credentials possible
+
+HTML Title: "Chemical Plant - Industrial Control System"
+HTML Body Contains:
+- "Modbus TCP/IP"
+- "PLC Status Dashboard"
+- "Historian Data Access"
+- "Engineering Workstation"
+
+================================================================================
+PORT: 80/tcp (HTTP)
+Service: HTTP
+Banner:
+HTTP/1.1 301 Moved Permanently
+Location: https://portal.chemicalplant.com
+Server: nginx/1.18.0
+
+Note: Redirects to HTTPS
+
+================================================================================
+PORT: 502/tcp (Modbus)
+Service: Modbus TCP
+Banner:
+Modbus/TCP
+Unit ID: 1
+Vendor: VulnPLC Corp
+Product Code: PLC-1
+Model: VulnPLC-1000
+Firmware: v1.0.0
+
+WARNING: No authentication required!
+Function Codes Supported: 1,2,3,4,5,6,15,16
+
+Accessible Registers:
+- Coils: 0-99
+- Discrete Inputs: 0-99
+- Holding Registers: 0-99
+- Input Registers: 0-99
+
+================================================================================
+PORT: 21/tcp (FTP)
+Service: FTP
+Banner:
+220 Chemical Plant FTP Server
+220 Welcome to Chemical Plant File Server
+220 vsftpd 3.0.3
+USER anonymous
+331 Please specify the password.
+PASS anonymous
+230 Login successful.
+
+Anonymous FTP Enabled!
+
+Directory Listing:
+/pub/
+├── network_diagrams/
+│   ├── network_topology_2024.pdf
+│   ├── vlan_config.xlsx
+│   └── firewall_rules.txt
+├── backups/
+│   ├── plc1_backup_20241201.zip
+│   ├── plc2_backup_20241201.zip
+│   ├── plc3_backup_20241201.zip
+│   └── plc4_backup_20241201.zip
+├── procedures/
+│   ├── emergency_shutdown.pdf
+│   ├── maintenance_procedures.pdf
+│   └── vendor_access_guide.pdf
+└── passwords/
+    └── default_credentials.txt  (!!!)
+
+================================================================================
+PORT: 5000/tcp (HTTP)
+Service: HTTP
+Banner:
+HTTP/1.1 200 OK
+Server: Werkzeug/2.0.1 Python/3.9.0
+Content-Type: text/html
+Title: PLC-1 Tank Control Web Interface
+
+Login Page Detected:
+- Username field present
+- Password field present
+- No CSRF protection
+- No rate limiting
+- SQL injection possible (based on error messages)
+
+================================================================================
+
+Additional Information:
+- CVE Scan: 15 potential vulnerabilities found
+- Exposed Services: HTTP, HTTPS, FTP, Modbus, SSH
+- Default Credentials: Likely (based on banners)
+- Last Updated: 2024-12-05 10:15:32 UTC
+
+Related Domains:
+- chemicalplant.com
+- portal.chemicalplant.com
+- vpn.chemicalplant.com
+- ftp.chemicalplant.com
+
+Historical Data:
+- First seen: 2022-08-15
+- Services changed: 3 times
+- Certificate changes: 2 times
+
+SSL Certificate Information:
+Subject: CN=portal.chemicalplant.com
+Issuer: CN=Let's Encrypt Authority X3
+Valid From: 2024-09-01
+Valid Until: 2024-12-01 (EXPIRED!)
+Serial Number: 04:55:de:a1:23:bc:ef:90
+
+Notes:
+- SSL certificate expired on Dec 1, 2024
+- Anonymous FTP access enabled (security risk)
+- Modbus directly exposed to internet (CRITICAL!)
+- Multiple web interfaces with default configurations
+- No intrusion detection systems detected
+
+================================================================================
+OSINT FINDINGS
+================================================================================
+
+1. LinkedIn profiles found:
+   - Mike Johnson - Plant Manager at Chemical Plant Operations
+   - Sarah Chen - Control Systems Engineer
+   - Dave Miller - IT Security Manager
+
+2. GitHub Repository:
+   - https://github.com/chemicalplant-ops/docs
+   - Repository deleted but cached on web.archive.org
+   - Contains network diagrams, credentials, meeting notes
+
+3. Job Postings:
+   - Seeking "SCADA Administrator" - mentions Rockwell Automation PLCs
+   - Lists specific software versions and network topology
+
+4. Breach Databases:
+   - Email: jsmith@chemicalplant.com found in 2023 breach
+   - Password: ChemPlant2023! (likely reused)
+
+5. Google Dorking Results:
+   - site:chemicalplant.com filetype:pdf "confidential"
+   - site:chemicalplant.com inurl:backup
+   - site:chemicalplant.com "default password"
+
+================================================================================
+EXPLOITATION PATH
+================================================================================
+
+1. Anonymous FTP -> Download default_credentials.txt
+2. Use credentials to access HMI Portal (admin/admin)
+3. Access Modbus PLCs via exposed port 502
+4. Pivot to internal OT network
+5. Manipulate process values
+6. Trigger safety incidents
+
+Risk Level: CRITICAL
+CVSS Score: 9.8 (Critical)

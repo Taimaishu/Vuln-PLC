@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Process Control - VulnPLC-3000</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+        }
+        .navbar {
+            background: #2c3e50;
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .navbar h1 { font-size: 20px; }
+        .navbar a { color: white; text-decoration: none; margin-left: 20px; }
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .card h2 {
+            margin-bottom: 20px;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .control-group {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        .control-group h3 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        .switch-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 15px 0;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #2ecc71;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        .slider-input {
+            width: 100%;
+            margin: 15px 0;
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #d3d3d3;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3498db;
+            cursor: pointer;
+        }
+        .value-display {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #3498db;
+            margin: 10px 0;
+        }
+        .btn {
+            padding: 12px 24px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+        .btn.danger {
+            background: #e74c3c;
+        }
+        .btn.danger:hover {
+            background: #c0392b;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .status-badge.on {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-badge.off {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <h1>⚙️ Process Control Panel</h1>
+        <div>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/hmi">HMI</a>
+            <a href="/scada">SCADA</a>
+            <a href="/logout">Logout</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h2>Equipment Control</h2>
+            <div class="controls-grid">
+                <div class="control-group">
+                    <h3>Pump Control</h3>
+                    <div class="switch-container">
+                        <span>Pump Status:</span>
+                        <label class="switch">
+                            <input type="checkbox" id="pump-switch" checked onchange="togglePump()">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div style="text-align: center; margin-top: 15px;">
+                        <span class="status-badge on" id="pump-badge">RUNNING</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <h3>Valve Control</h3>
+                    <div class="switch-container">
+                        <span>Valve Position:</span>
+                        <label class="switch">
+                            <input type="checkbox" id="valve-switch" onchange="toggleValve()">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div style="text-align: center; margin-top: 15px;">
+                        <span class="status-badge off" id="valve-badge">CLOSED</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <h3>Motor Speed Control</h3>
+                    <div class="slider-input">
+                        <input type="range" id="motor-slider" min="0" max="3000" value="1500" oninput="updateMotorSpeed()">
+                    </div>
+                    <div class="value-display" id="motor-value">1500 RPM</div>
+                    <button class="btn" onclick="setMotorSpeed()">Apply Speed</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Process Operations</h2>
+            <div class="controls-grid">
+                <div class="control-group">
+                    <h3>Tank Operations</h3>
+                    <button class="btn" onclick="resetTank()">Reset Tank Level (50%)</button>
+                    <button class="btn danger" onclick="drainTank()">Emergency Drain</button>
+                </div>
+
+                <div class="control-group">
+                    <h3>System Operations</h3>
+                    <button class="btn" onclick="startProcess()">Start Process</button>
+                    <button class="btn danger" onclick="stopProcess()">Emergency Stop</button>
+                </div>
+
+                <div class="control-group">
+                    <h3>Current Status</h3>
+                    <div style="padding: 10px; background: #e8f4f8; border-radius: 5px;">
+                        <p><strong>Tank Level:</strong> <span id="status-level">--</span>%</p>
+                        <p><strong>Temperature:</strong> <span id="status-temp">--</span>°C</p>
+                        <p><strong>Pressure:</strong> <span id="status-pressure">--</span> kPa</p>
+                        <p><strong>Flow Rate:</strong> <span id="status-flow">--</span> L/min</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function togglePump() {
+            const checked = document.getElementById('pump-switch').checked;
+            control('pump', checked);
+            updateBadge('pump-badge', checked, 'RUNNING', 'STOPPED');
+        }
+
+        function toggleValve() {
+            const checked = document.getElementById('valve-switch').checked;
+            control('valve', checked);
+            updateBadge('valve-badge', checked, 'OPEN', 'CLOSED');
+        }
+
+        function updateMotorSpeed() {
+            const value = document.getElementById('motor-slider').value;
+            document.getElementById('motor-value').textContent = value + ' RPM';
+        }
+
+        function setMotorSpeed() {
+            const value = document.getElementById('motor-slider').value;
+            control('motor_speed', value);
+        }
+
+        function resetTank() {
+            control('reset_tank', true);
+        }
+
+        function drainTank() {
+            if (confirm('WARNING: This will drain the tank to 10%. Continue?')) {
+                // Simulate by setting very low level
+                alert('Emergency drain initiated');
+            }
+        }
+
+        function startProcess() {
+            control('pump', true);
+            control('valve', true);
+            document.getElementById('pump-switch').checked = true;
+            document.getElementById('valve-switch').checked = true;
+            updateBadge('pump-badge', true, 'RUNNING', 'STOPPED');
+            updateBadge('valve-badge', true, 'OPEN', 'CLOSED');
+        }
+
+        function stopProcess() {
+            if (confirm('WARNING: This will stop all equipment. Continue?')) {
+                control('pump', false);
+                control('valve', false);
+                document.getElementById('pump-switch').checked = false;
+                document.getElementById('valve-switch').checked = false;
+                updateBadge('pump-badge', false, 'RUNNING', 'STOPPED');
+                updateBadge('valve-badge', false, 'OPEN', 'CLOSED');
+            }
+        }
+
+        function control(action, value) {
+            fetch('/api/process/control', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action: action, value: value})
+            })
+            .then(r => r.json())
+            .then(data => {
+                updateStatus();
+            });
+        }
+
+        function updateBadge(id, isOn, onText, offText) {
+            const badge = document.getElementById(id);
+            badge.textContent = isOn ? onText : offText;
+            badge.className = 'status-badge ' + (isOn ? 'on' : 'off');
+        }
+
+        function updateStatus() {
+            fetch('/api/process/status')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('status-level').textContent = data.tank_level.toFixed(1);
+                    document.getElementById('status-temp').textContent = data.temperature.toFixed(1);
+                    document.getElementById('status-pressure').textContent = data.pressure.toFixed(1);
+                    document.getElementById('status-flow').textContent = data.flow_rate.toFixed(1);
+                });
+        }
+
+        // Update status every 3 seconds
+        setInterval(updateStatus, 3000);
+        updateStatus();
+    </script>
+</body>
+</html>

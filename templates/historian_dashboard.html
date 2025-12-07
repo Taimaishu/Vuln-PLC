@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Historian Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #1a1a2e;
+            color: #fff;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { font-size: 24px; }
+        .container { padding: 30px; max-width: 1800px; margin: 0 auto; }
+        .card {
+            background: #16213e;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .card h2 { color: #667eea; margin-bottom: 15px; }
+        button {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Historian Dashboard</h1>
+        <div>{{ username }} | <a href="/logout" style="color: white;">Logout</a></div>
+    </div>
+    <div class="container">
+        <div class="card">
+            <h2>Time-Series Data Platform</h2>
+            <p>Collecting data from 4 PLCs</p>
+            <button onclick="location.reload()">Refresh</button>
+        </div>
+    </div>
+</body>
+</html>

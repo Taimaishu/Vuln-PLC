@@ -1,0 +1,184 @@
+#!/usr/bin/env python3
+"""
+Vulnerable PLC - Command Line Interface
+Main entry point for managing the ICS/SCADA security training lab
+"""
+
+import os
+import sys
+import subprocess
+from pathlib import Path
+
+# Get the installation directory
+INSTALL_DIR = Path(__file__).parent.resolve()
+
+def print_banner():
+    """Display the application banner"""
+    banner = """
+╔═══════════════════════════════════════════════════════════╗
+║  Vulnerable PLC - ICS/SCADA Security Training Lab        ║
+║  Command Line Interface                                   ║
+╚═══════════════════════════════════════════════════════════╝
+"""
+    print(banner)
+
+def print_help():
+    """Display help information"""
+    print_banner()
+    help_text = """
+Usage: vuln-plc [COMMAND]
+
+Commands:
+  start       Start all PLC services, historian, and network simulator
+  stop        Stop all running services
+  status      Show status of all services
+  restart     Restart all services (stop + start)
+  logs        Follow all service logs in real-time
+  help        Show this help message
+
+Examples:
+  vuln-plc start        # Start all services
+  vuln-plc status       # Check what's running
+  vuln-plc logs         # Monitor all logs
+  vuln-plc stop         # Stop everything
+
+Web Interfaces (after starting):
+  PLC-1 (Tank):       http://localhost:5000  (admin/admin)
+  PLC-2 (Pressure):   http://localhost:5011  (engineer/plc2pass)
+  PLC-3 (Temperature): http://localhost:5012  (engineer/temp123)
+  PLC-4 (Safety):     http://localhost:5013  (safety_eng/safe123)
+  Historian:          http://localhost:8888  (historian/data123)
+
+Modbus TCP Endpoints:
+  PLC-1: localhost:5502
+  PLC-2: localhost:5503
+  PLC-3: localhost:5504
+  PLC-4: localhost:5505
+
+Documentation:
+  Architecture:       {install_dir}/docs/ARCHITECTURE.md
+  OSINT Guide:        {install_dir}/docs/OSINT_DISCOVERY_GUIDE.md
+  Attack Scenarios:   {install_dir}/docs/ATTACK_SCENARIOS.md
+  Detection:          {install_dir}/docs/DETECTION_PLAYBOOK.md
+  Evasion:            {install_dir}/docs/EVASION_TECHNIQUES.md
+  Quick Start:        {install_dir}/FINAL_SUMMARY.md
+
+⚠️  WARNING: This is an INTENTIONALLY VULNERABLE system
+    Use ONLY in isolated lab environments!
+""".format(install_dir=INSTALL_DIR)
+    print(help_text)
+
+def run_script(script_name):
+    """Run a bash script from the installation directory"""
+    script_path = INSTALL_DIR / script_name
+
+    if not script_path.exists():
+        print(f"Error: Script not found: {script_path}")
+        return 1
+
+    # Make script executable if not already
+    os.chmod(script_path, 0o755)
+
+    # Run the script
+    try:
+        result = subprocess.run(
+            ['bash', str(script_path)],
+            cwd=INSTALL_DIR,
+            check=False
+        )
+        return result.returncode
+    except KeyboardInterrupt:
+        print("\n\nInterrupted by user")
+        return 130
+    except Exception as e:
+        print(f"Error running script: {e}")
+        return 1
+
+def cmd_start():
+    """Start all services"""
+    return run_script('start_all.sh')
+
+def cmd_stop():
+    """Stop all services"""
+    return run_script('stop_all.sh')
+
+def cmd_status():
+    """Show service status"""
+    return run_script('status.sh')
+
+def cmd_restart():
+    """Restart all services"""
+    print("Stopping services...")
+    cmd_stop()
+    print("\nStarting services...")
+    return cmd_start()
+
+def cmd_logs():
+    """Follow all service logs"""
+    logs_dir = INSTALL_DIR / 'logs'
+
+    if not logs_dir.exists():
+        print("No logs directory found. Services may not have been started yet.")
+        print("Run: vuln-plc start")
+        return 1
+
+    log_files = list(logs_dir.glob('*.log'))
+
+    if not log_files:
+        print("No log files found. Services may not have been started yet.")
+        print("Run: vuln-plc start")
+        return 1
+
+    print(f"Following logs from: {logs_dir}")
+    print("Press Ctrl+C to stop\n")
+
+    try:
+        # Use tail -f to follow all log files
+        subprocess.run(
+            ['tail', '-f'] + [str(f) for f in log_files],
+            cwd=INSTALL_DIR
+        )
+        return 0
+    except KeyboardInterrupt:
+        print("\n\nStopped following logs")
+        return 0
+    except Exception as e:
+        print(f"Error following logs: {e}")
+        return 1
+
+def main():
+    """Main entry point"""
+
+    # Parse command
+    if len(sys.argv) < 2:
+        # Default to help if no command provided
+        print_help()
+        return 0
+
+    command = sys.argv[1].lower()
+
+    # Execute command
+    commands = {
+        'start': cmd_start,
+        'stop': cmd_stop,
+        'status': cmd_status,
+        'restart': cmd_restart,
+        'logs': cmd_logs,
+        'help': lambda: (print_help(), 0)[1],
+        '--help': lambda: (print_help(), 0)[1],
+        '-h': lambda: (print_help(), 0)[1],
+    }
+
+    if command in commands:
+        return commands[command]()
+    else:
+        print(f"Unknown command: {command}")
+        print("Run 'vuln-plc help' for usage information")
+        return 1
+
+if __name__ == '__main__':
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        print("\n\nInterrupted by user")
+        sys.exit(130)
