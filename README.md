@@ -13,12 +13,16 @@ A comprehensive, intentionally vulnerable industrial control system environment 
 
 ## Recent Updates
 
-### Latest Fixes (2024-12-07)
+### Major Enhancements (2024-12-07)
+- 🚀 **NEW**: Realistic PLC simulation engine with scan cycles and ladder logic
+- 🚀 **NEW**: Modbus intrusion detection system (IDS) with real-time alerts
+- 🚀 **NEW**: Siemens S7 protocol support (educational implementation)
+- 🚀 **NEW**: System monitoring dashboard (console + web interface)
 - ✅ Fixed PLC-1 Modbus server sync feedback loop
 - ✅ Added full user management system (add/edit/delete users)
 - ✅ Added PLC-4 watchdog enable/disable controls
 - ✅ Optimized network traffic log (reduced from 1000 to 100 entries)
-- ✅ Verified all PLC control APIs working correctly
+- ✅ Comprehensive Blue Team training documentation
 
 ## Features
 
@@ -77,6 +81,12 @@ A comprehensive, intentionally vulnerable industrial control system environment 
    - Shodan scan results
    - PLC backup configurations
 
+8. **Advanced Features (NEW)**
+   - **PLC Simulation Engine**: Realistic scan cycles, ladder logic execution
+   - **Modbus IDS**: Real-time intrusion detection with alerts
+   - **S7 Protocol Server**: Siemens S7comm support (port 102)
+   - **System Monitor**: Centralized dashboard (console + web)
+
 ### Network Architecture
 
 Based on Purdue Model:
@@ -85,13 +95,15 @@ Based on Purdue Model:
 - **DMZ**: 192.168.50.0/24 (Historian, web portal)
 - **Firewall**: Intentionally misconfigured (ALLOW_ALL between zones)
 
-### Documentation (200+ pages)
+### Documentation (300+ pages)
 
 - **ARCHITECTURE.md** (30+ pages) - Complete system architecture
 - **OSINT_DISCOVERY_GUIDE.md** (40+ pages) - OSINT techniques
 - **ATTACK_SCENARIOS.md** (50+ pages) - Detailed attack walkthroughs
 - **DETECTION_PLAYBOOK.md** (45+ pages) - Defense strategies and IOCs
 - **EVASION_TECHNIQUES.md** (35+ pages) - Advanced evasion tactics
+- **ADVANCED_FEATURES.md** (50+ pages) - NEW: PLC engine, IDS, S7 protocol
+- **BLUE_TEAM_GUIDE.md** (40+ pages) - NEW: Defense and incident response
 - **FINAL_SUMMARY.md** (10+ pages) - Quick reference guide
 
 ---
@@ -165,6 +177,63 @@ See comprehensive testing guides in the documentation files, including:
 - Network reconnaissance
 - OSINT discovery
 - IDS evasion techniques
+
+### Advanced Testing (NEW)
+
+**PLC Engine Testing:**
+```python
+from plc_engine import PLCEngine, Instruction, InstructionType
+
+# Create PLC with 50ms scan cycle
+engine = PLCEngine('plc1', scan_time_ms=50)
+
+# Load ladder logic
+program = [
+    Instruction(InstructionType.CMP, ['tank_level', '<', '30']),
+    Instruction(InstructionType.OUT, ['pump_status']),
+]
+engine.load_program(program)
+engine.start()
+```
+
+**Modbus IDS Testing:**
+```python
+from modbus_ids import ModbusIDS
+
+# Start IDS with monitoring
+ids = ModbusIDS()
+ids.add_authorized_writer('192.168.100.20')
+ids.add_protected_address(10)
+ids.start()
+
+# Generate test attacks - observe alerts!
+```
+
+**System Monitoring:**
+```bash
+# Console dashboard
+python3 system_monitor.py
+
+# Web dashboard (recommended)
+python3 system_monitor.py --web
+# Access at http://localhost:5999
+```
+
+**S7 Protocol Testing:**
+```python
+import snap7
+
+# Connect to S7 server (requires root for port 102)
+plc = snap7.client.Client()
+plc.connect('localhost', 0, 1, 102)
+
+# Read/write data blocks
+data = plc.db_read(1, 0, 10)
+plc.db_write(1, 0, bytearray([0x01, 0x02]))
+
+# VULNERABILITY: Stop PLC without auth!
+plc.plc_stop()
+```
 
 ---
 
