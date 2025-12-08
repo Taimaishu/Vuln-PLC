@@ -9,7 +9,7 @@ services:
     build: .
     container_name: vuln-plc1
     hostname: plc1
-    command: python app.py
+    command: python core/app.py
     ports:
       - "5000:5000"   # Web interface
       - "5502:5502"   # Modbus TCP
@@ -33,7 +33,7 @@ services:
     build: .
     container_name: vuln-plc2
     hostname: plc2
-    command: python plc2_pressure.py
+    command: python core/plc2_pressure.py
     ports:
       - "5011:5011"   # Web interface
       - "5503:5503"   # Modbus TCP
@@ -57,7 +57,7 @@ services:
     build: .
     container_name: vuln-plc3
     hostname: plc3
-    command: python plc3_temperature.py
+    command: python core/plc3_temperature.py
     ports:
       - "5012:5012"   # Web interface
       - "5504:5504"   # Modbus TCP
@@ -81,7 +81,7 @@ services:
     build: .
     container_name: vuln-plc4
     hostname: plc4
-    command: python plc4_safety.py
+    command: python core/plc4_safety.py
     ports:
       - "5013:5013"   # Web interface
       - "5505:5505"   # Modbus TCP
@@ -105,7 +105,7 @@ services:
     build: .
     container_name: vuln-historian
     hostname: historian
-    command: python historian.py
+    command: python core/historian.py
     ports:
       - "8888:8888"   # Web interface
     volumes:
@@ -121,13 +121,34 @@ services:
     restart: unless-stopped
 
   # =============================================================================
+  # HMI Server (Visual SCADA Interface)
+  # =============================================================================
+  hmi_server:
+    build: .
+    container_name: vuln-hmi-server
+    hostname: hmi-server
+    command: python core/hmi_server.py
+    ports:
+      - "8000:8000"   # HMI Web interface
+    volumes:
+      - ./logs:/app/logs
+    environment:
+      - FLASK_ENV=development
+    networks:
+      dmz_network:
+        ipv4_address: 192.168.50.15
+      ot_network:
+        ipv4_address: 192.168.100.25
+    restart: unless-stopped
+
+  # =============================================================================
   # Modbus IDS (Monitoring Network)
   # =============================================================================
   modbus_ids:
     build: .
     container_name: vuln-modbus-ids
     hostname: modbus-ids
-    command: python modbus_ids.py --monitor
+    command: python monitoring/modbus_ids.py --monitor
     volumes:
       - ./logs:/app/logs
       - ./pcaps:/app/pcaps
@@ -152,7 +173,7 @@ services:
     build: .
     container_name: vuln-system-monitor
     hostname: system-monitor
-    command: python system_monitor.py --web
+    command: python monitoring/system_monitor.py --web
     ports:
       - "5999:5999"   # Web dashboard
     volumes:
@@ -174,7 +195,7 @@ services:
     build: .
     container_name: vuln-network-sim
     hostname: network-sim
-    command: python network_simulator.py
+    command: python monitoring/network_simulator.py
     volumes:
       - ./logs:/app/logs
     environment:
@@ -194,7 +215,7 @@ services:
     build: .
     container_name: vuln-s7-server
     hostname: s7-server
-    command: python s7_server.py
+    command: python core/s7_server.py
     ports:
       - "102:102"     # S7 Protocol (requires root)
     volumes:

@@ -14,7 +14,10 @@ import threading
 import logging
 from datetime import datetime
 from typing import Dict, List
-import shared_state
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from core import shared_state
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)

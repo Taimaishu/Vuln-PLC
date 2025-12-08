@@ -12,9 +12,12 @@ import sqlite3
 import hashlib
 import time
 from datetime import datetime
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import shared_state
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='../templates')
 app.secret_key = 'plc2-weak-secret-999'  # Intentionally weak
 
 # Initialize shared state

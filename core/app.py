@@ -11,15 +11,17 @@ from flask import Flask, render_template, request, redirect, url_for, session, j
 from functools import wraps
 import sqlite3
 import os
+import sys
 import subprocess
 import hashlib
 from datetime import datetime, timedelta
 import secrets
 import random
 import json
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import shared_state
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='../templates')
 app.secret_key = 'insecure-secret-key-12345'  # Intentionally weak
 
 # Role-based access control decorator

@@ -10,9 +10,12 @@ Vulnerabilities: Weak authentication, timing attacks, safety system bypass
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 import time
 import hashlib
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import shared_state
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='../templates')
 app.secret_key = 'plc4-safety-weak-key-000'
 
 shared_state.init_state()

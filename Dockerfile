@@ -21,7 +21,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy all application files
-COPY *.py ./
+COPY core/ core/
+COPY monitoring/ monitoring/
+COPY scripts/ scripts/
 COPY templates/ templates/
 COPY docs/ docs/
 

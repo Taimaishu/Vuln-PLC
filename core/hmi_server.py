@@ -12,15 +12,17 @@ Features:
 """
 
 import os
+import sys
 import time
 import logging
 from flask import Flask, render_template, jsonify, request
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import shared_state
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='../templates')
 app.secret_key = 'hmi-secret-key-change-in-production'
 
 # Initialize shared state

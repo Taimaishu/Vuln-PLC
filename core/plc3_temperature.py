@@ -11,11 +11,13 @@ from flask import Flask, render_template, request, redirect, url_for, session, j
 import pickle
 import base64
 import os
+import sys
 import hashlib
 import time
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import shared_state
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='../templates')
 app.secret_key = 'plc3-insecure-key-777'
 
 shared_state.init_state()
