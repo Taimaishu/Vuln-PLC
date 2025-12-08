@@ -11,6 +11,8 @@
 
 ## ⚡ Quick Start
 
+### Option 1: Local Installation
+
 ```bash
 # Clone the repository
 git clone https://github.com/Taimaishu/Vuln-PLC.git
@@ -27,16 +29,31 @@ pip install modbus-cli
 firefox http://localhost:8000
 ```
 
+### Option 2: Docker (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/Taimaishu/Vuln-PLC.git
+cd Vuln-PLC
+
+# Build and start all containers (one command - that's it!)
+sudo docker-compose up -d
+
+# Install modbus-cli for attacks (on your host machine)
+pip install modbus-cli
+
+# Access the web interfaces
+firefox http://localhost:5000  # PLC-1
+```
+
 **Try your first attack:**
 ```bash
 # Force tank overflow
 sudo modbus 127.0.0.1:5502 write 0 1   # Pump ON
 sudo modbus 127.0.0.1:5502 write 1 0   # Valve CLOSED
 
-# Watch the consequences on HMI: http://localhost:8000
+# Watch the consequences on HMI: http://localhost:8000 (local) or check PLC web interfaces (Docker)
 ```
-
-> **Note:** For Docker deployment, see [Docker Installation](#docker-installation) section below.
 
 ---
 
@@ -226,7 +243,7 @@ cd Vuln-PLC
 
 ### Docker Installation
 
-**Prerequisites:**
+**Step 1: Install Prerequisites**
 ```bash
 # Install Docker Compose (if not already installed)
 sudo apt update
@@ -236,25 +253,63 @@ sudo apt install docker-compose
 docker-compose --version
 ```
 
-**Deployment:**
+**Step 2: Clone and Deploy**
 ```bash
-# Basic deployment (4 PLCs + Historian)
-docker-compose up -d
+# Clone the repository
+git clone https://github.com/Taimaishu/Vuln-PLC.git
+cd Vuln-PLC
 
-# Full deployment (includes IDS, Monitor, Network Sim)
-docker-compose --profile full up -d
+# Build and start containers (builds images automatically on first run)
+sudo docker-compose up -d
 
-# Check status
-docker-compose ps
-
-# View logs
-docker-compose logs -f
-
-# Stop all services
-docker-compose down
+# This will:
+# - Build Docker images from Dockerfile (first time only, ~2 minutes)
+# - Create networks and volumes
+# - Start all 6 containers
 ```
 
-> **Note:** Use `docker-compose` (with hyphen) for the standalone version, or install Docker Compose V2 plugin to use `docker compose` (with space).
+**Step 3: Verify It's Running**
+```bash
+# Check all containers are up
+sudo docker-compose ps
+
+# You should see 6 services running:
+# - vuln-plc1, vuln-plc2, vuln-plc3, vuln-plc4
+# - vuln-historian
+# - vuln-system-monitor
+```
+
+**Step 4: Access the Interfaces**
+- **PLC-1:** http://localhost:5000 (admin/admin)
+- **PLC-2:** http://localhost:5011 (engineer/plc2pass)
+- **PLC-3:** http://localhost:5012 (engineer/temp123)
+- **PLC-4:** http://localhost:5013 (safety_eng/safe123)
+- **Historian:** http://localhost:8888 (historian/data123)
+- **System Monitor:** http://localhost:5999
+
+**Optional: Full Deployment (with IDS & Network Sim)**
+```bash
+# Includes Modbus IDS and Network Traffic Simulator
+sudo docker-compose --profile full up -d
+```
+
+**Managing Containers:**
+```bash
+# View logs
+sudo docker-compose logs -f
+
+# Stop all services
+sudo docker-compose down
+
+# Restart
+sudo docker-compose restart
+
+# Rebuild images after code changes
+sudo docker-compose build
+sudo docker-compose up -d
+```
+
+> **Note:** No need to pull images - `docker-compose up` automatically builds everything from the Dockerfile in the repo!
 
 ---
 
