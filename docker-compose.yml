@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Vulnerable PLC - Complete ICS/SCADA Training Environment
 # Includes: 4 PLCs, Historian, Modbus IDS, System Monitor, Network Simulator
 
