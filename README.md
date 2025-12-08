@@ -265,7 +265,7 @@ sudo docker-compose up -d
 # This will:
 # - Build Docker images from Dockerfile (first time only, ~2 minutes)
 # - Create networks and volumes
-# - Start all 6 containers
+# - Start all 7 containers
 ```
 
 **Step 3: Verify It's Running**
@@ -273,9 +273,10 @@ sudo docker-compose up -d
 # Check all containers are up
 sudo docker-compose ps
 
-# You should see 6 services running:
+# You should see 7 services running:
 # - vuln-plc1, vuln-plc2, vuln-plc3, vuln-plc4
 # - vuln-historian
+# - vuln-hmi-server
 # - vuln-system-monitor
 ```
 
@@ -285,6 +286,7 @@ sudo docker-compose ps
 - **PLC-3:** http://localhost:5012 (engineer/temp123)
 - **PLC-4:** http://localhost:5013 (safety_eng/safe123)
 - **Historian:** http://localhost:8888 (historian/data123)
+- **HMI Interface:** http://localhost:8000 (Visual SCADA)
 - **System Monitor:** http://localhost:5999
 
 **Optional: Full Deployment (with IDS & Network Sim)**
