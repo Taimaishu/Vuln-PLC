@@ -217,6 +217,81 @@ curl -X POST http://localhost:5000/login \
 
 ---
 
+## 📚 Suggested Learning Path
+
+New to ICS security? Follow this structured progression from beginner to advanced:
+
+### **Phase 1: Reconnaissance & Enumeration**
+**Goal:** Understand the target environment
+
+1. **Discovery:** Use `nmap` to identify Modbus services
+   ```bash
+   nmap -p 502,5502-5505 localhost
+   ```
+
+2. **Enumerate PLCs:** Access each web interface and explore functionality
+   - Map out available features (dashboards, controls, settings)
+   - Identify user roles and permissions
+   - Document default credentials
+
+3. **Protocol Analysis:** Capture and analyze Modbus traffic
+   ```bash
+   sudo tcpdump -i lo port 5502 -w capture.pcap
+   ```
+
+### **Phase 2: Basic Attacks**
+**Goal:** Exploit fundamental vulnerabilities
+
+4. **Authentication Bypass:** Test SQL injection on login forms
+   ```bash
+   curl -X POST http://localhost:5000/login -d "username=admin' OR '1'='1&password=x"
+   ```
+
+5. **Modbus Manipulation:** Send unauthorized commands
+   ```bash
+   sudo modbus 127.0.0.1:5502 write 0 1  # Force pump ON
+   ```
+
+6. **Information Disclosure:** Exploit directory traversal and verbose errors
+
+### **Phase 3: Advanced Exploitation**
+**Goal:** Chain vulnerabilities for maximum impact
+
+7. **Historian Tampering:** Manipulate time-series data
+   - Inject false readings to hide attacks
+   - Delete audit logs for forensic anti-analysis
+
+8. **Session Hijacking:** Steal and reuse session tokens
+   - Escalate from guest to admin
+   - Maintain persistent access
+
+9. **Command Injection:** Execute arbitrary OS commands via vulnerable inputs
+
+### **Phase 4: Evasion & Persistence**
+**Goal:** Avoid detection and maintain access
+
+10. **IDS Evasion:** Learn to bypass the Modbus IDS
+    - Slow down attack pace to avoid rate-limiting
+    - Use valid function codes
+    - Mimic normal traffic patterns
+
+11. **Traffic Replay:** Capture and replay legitimate commands
+
+12. **Covert Channels:** Hide malicious commands in normal operations
+
+### **Phase 5: Defense**
+**Goal:** Think like a blue teamer
+
+13. **Review PCAP Files:** Analyze `pcaps/` for attack indicators
+
+14. **Configure IDS Rules:** Tune detection signatures in `monitoring/modbus_ids.py`
+
+15. **Incident Response:** Practice identifying and containing breaches
+
+**📖 Deep Dive:** Each phase has detailed walkthroughs in [docs/attack/](docs/attack/)
+
+---
+
 ## ⚙️ Installation
 
 ### Requirements
@@ -336,21 +411,58 @@ See **[ROADMAP.md](docs/architecture/ROADMAP.md)** for complete timeline.
 
 ---
 
-## 🤝 Contributing
+## 🤝 Contributors Welcome!
 
-We welcome contributions! Areas of interest:
+**ICS security labs are rare — your contributions make a real impact on the community!**
 
-**High Priority:**
-- EtherNet/IP (CIP) protocol implementation
-- HMI trend charts and historian integration
-- ML-based IDS enhancements
+We're actively looking for contributors to help make Vuln-PLC the best ICS training platform. Whether you're a seasoned ICS expert or just getting started, there's a place for you here.
 
-**Documentation:**
-- Video tutorials
-- CTF challenges
-- Training materials
+### 🔥 High-Impact Contributions
 
-See **CONTRIBUTING.md** for guidelines.
+**Protocol Implementations** (Python experience needed)
+- ✨ **EtherNet/IP (CIP)** - Allen-Bradley/Rockwell automation
+- ✨ **DNP3** - Power utility SCADA protocol
+- ✨ **OPC UA** - Industry 4.0 standard
+- ✨ **BACnet** - Building automation systems
+
+**Visual Enhancements** (Frontend/JavaScript)
+- 📈 **HMI Trend Charts** - Real-time historian data visualization
+- 🖥️ **Advanced P&ID Diagrams** - Interactive process flows
+- 🎨 **Modern UI/UX** - Improve web interface design
+
+**Security Features** (Security/ML experience)
+- 🤖 **ML-based Anomaly Detection** - Enhance IDS capabilities
+- 🔍 **Traffic Analysis Tools** - PCAP parsing and visualization
+- 🛡️ **Defense Playbooks** - Blue team training scenarios
+
+### 📚 Documentation Contributions
+
+**Always Needed:**
+- 🎥 **Video Tutorials** - Walkthrough attacks and defenses
+- 🏆 **CTF Challenges** - Create capture-the-flag scenarios
+- 📖 **Training Materials** - Lesson plans for educators
+- 🌍 **Translations** - Help reach global audience
+- ✍️ **Blog Posts** - Write about your experiments
+
+### 💡 Quick Contribution Ideas
+
+**Good First Issues:**
+- Add new vulnerable endpoints to existing PLCs
+- Create additional attack scenarios
+- Improve error messages and logging
+- Add unit tests for core functionality
+- Fix typos and improve documentation clarity
+
+### 🚀 How to Get Started
+
+1. **Fork the repo** and explore the codebase
+2. **Check [Issues](https://github.com/Taimaishu/Vuln-PLC/issues)** for "good first issue" tags
+3. **Join discussions** - Ask questions, share ideas
+4. **Submit a PR** - Even small improvements matter!
+
+See **[CONTRIBUTING.md](docs/media/CONTRIBUTING.md)** for detailed guidelines.
+
+**⭐ Show Support:** Star the repo if you find it useful — it helps others discover the project!
 
 ---
 
