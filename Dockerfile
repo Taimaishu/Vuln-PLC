@@ -28,7 +28,7 @@ COPY templates/ templates/
 COPY docs/ docs/
 
 # Create necessary directories
-RUN mkdir -p /app/data /app/logs /app/pcaps /tmp
+RUN mkdir -p /app/data /app/logs /app/pcaps /app/shared /tmp
 
 # Expose ports for all services
 # PLC web interfaces: 5000-5013
