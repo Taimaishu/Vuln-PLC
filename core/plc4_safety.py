@@ -12,6 +12,9 @@ import time
 import hashlib
 import os
 import sys
+import socket
+import struct
+import threading
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import shared_state
 
@@ -243,6 +246,190 @@ def audit_log():
 
     return jsonify({'logs': logs})
 
+
+class ModbusTCPServer:
+    """
+    Minimal Modbus TCP Server - Intentionally Vulnerable
+
+    Implements only basic function codes:
+    - 0x03: Read Holding Registers
+    - 0x06: Write Single Register
+    - 0x10: Write Multiple Registers
+
+    VULNERABILITIES (INTENTIONAL):
+    - No authentication
+    - No bounds checking
+    - No input validation
+    - Allows writing to any register
+    - No rate limiting (connection limit exists but is bypassable)
+    - No logging of malicious activity
+    """
+
+    def __init__(self, host='0.0.0.0', port=5505, max_connections=50):
+        self.host = host
+        self.port = port
+        self.server_socket = None
+        self.running = False
+        self.connection_semaphore = threading.Semaphore(max_connections)
+
+    def start(self):
+        """Start the Modbus TCP server"""
+        try:
+            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.server_socket.settimeout(1.0)
+            self.server_socket.bind((self.host, self.port))
+            self.server_socket.listen(5)
+            self.running = True
+
+            print(f"[MODBUS] PLC4 Server started on {self.host}:{self.port}")
+
+            while self.running:
+                try:
+                    client_socket, address = self.server_socket.accept()
+                    print(f"[MODBUS] PLC4 Client connected from {address}")
+
+                    client_thread = threading.Thread(
+                        target=self._handle_client_with_semaphore,
+                        args=(client_socket, address),
+                        daemon=True
+                    )
+                    client_thread.start()
+
+                except socket.timeout:
+                    continue
+                except Exception as e:
+                    if self.running:
+                        print(f"[MODBUS] PLC4 Error accepting connection: {e}")
+
+        except Exception as e:
+            print(f"[MODBUS] PLC4 Failed to start server: {e}")
+
+    def stop(self):
+        """Stop the Modbus TCP server"""
+        self.running = False
+        if self.server_socket:
+            self.server_socket.close()
+
+    def recv_exact(self, sock, size):
+        """Receive exactly 'size' bytes from socket"""
+        data = b''
+        while len(data) < size:
+            chunk = sock.recv(size - len(data))
+            if not chunk:
+                raise ConnectionError("Socket closed before receiving all data")
+            data += chunk
+        return data
+
+    def _handle_client_with_semaphore(self, client_socket, address):
+        """Wrapper to handle client with connection semaphore"""
+        with self.connection_semaphore:
+            self.handle_client(client_socket, address)
+
+    def handle_client(self, client_socket, address):
+        """Handle a client connection"""
+        try:
+            while True:
+                header = self.recv_exact(client_socket, 7)
+                transaction_id, protocol_id, length, unit_id = struct.unpack('>HHHB', header)
+
+                if protocol_id != 0:
+                    print(f"[MODBUS] PLC4 WARNING: Non-standard protocol ID {protocol_id} from {address}")
+
+                pdu = self.recv_exact(client_socket, length - 1)
+                print(f"[MODBUS] PLC4 Request from {address}: Trans={transaction_id}, Unit={unit_id}, PDU={pdu.hex()}")
+
+                function_code = pdu[0]
+                response_pdu = self.process_request(function_code, pdu[1:])
+
+                response_length = len(response_pdu) + 1
+                response_header = struct.pack('>HHHB', transaction_id, protocol_id, response_length, unit_id)
+
+                response = response_header + response_pdu
+                client_socket.send(response)
+                print(f"[MODBUS] PLC4 Response: {response.hex()}")
+
+        except Exception as e:
+            print(f"[MODBUS] PLC4 Error handling client {address}: {e}")
+        finally:
+            client_socket.close()
+            print(f"[MODBUS] PLC4 Client {address} disconnected")
+
+    def process_request(self, function_code, data):
+        """Process Modbus request and return response PDU"""
+        try:
+            if function_code == 0x03:
+                return self.read_holding_registers(data)
+            elif function_code == 0x06:
+                return self.write_single_register(data)
+            elif function_code == 0x10:
+                return self.write_multiple_registers(data)
+            else:
+                return struct.pack('B', function_code | 0x80) + struct.pack('B', 0x01)
+
+        except Exception as e:
+            print(f"[MODBUS] PLC4 Error processing request: {e}")
+            return struct.pack('B', function_code | 0x80) + struct.pack('B', 0x04)
+
+    def read_holding_registers(self, data):
+        """Function Code 0x03: Read Holding Registers"""
+        start_addr, count = struct.unpack('>HH', data[:4])
+        print(f"[MODBUS] PLC4 Read Holding Registers: addr={start_addr}, count={count}")
+
+        values = []
+        for i in range(count):
+            register = start_addr + i
+            value = shared_state.state_to_register(register)
+            values.append(value)
+
+        byte_count = count * 2
+        response = struct.pack('BB', 0x03, byte_count)
+        for value in values:
+            response += struct.pack('>H', value)
+
+        return response
+
+    def write_single_register(self, data):
+        """Function Code 0x06: Write Single Register"""
+        addr, value = struct.unpack('>HH', data[:4])
+        print(f"[MODBUS] PLC4 Write Single Register: addr={addr}, value={value}")
+
+        key, converted_value = shared_state.register_to_state(addr, value)
+        if key:
+            shared_state.update_state(key, converted_value)
+            print(f"[MODBUS] PLC4 Updated {key} = {converted_value}")
+
+        return struct.pack('B', 0x06) + data[:4]
+
+    def write_multiple_registers(self, data):
+        """Function Code 0x10: Write Multiple Registers"""
+        start_addr, count, byte_count = struct.unpack('>HHB', data[:5])
+        print(f"[MODBUS] PLC4 Write Multiple Registers: addr={start_addr}, count={count}")
+
+        values_data = data[5:5+byte_count]
+        values = []
+        for i in range(count):
+            value = struct.unpack('>H', values_data[i*2:(i+1)*2])[0]
+            values.append(value)
+
+        for i, value in enumerate(values):
+            register = start_addr + i
+            key, converted_value = shared_state.register_to_state(register, value)
+            if key:
+                shared_state.update_state(key, converted_value)
+                print(f"[MODBUS] PLC4 Updated {key} = {converted_value}")
+
+        return struct.pack('>BHH', 0x10, start_addr, count)
+
+
+def start_modbus_server():
+    """Start Modbus TCP server in background thread"""
+    modbus_server = ModbusTCPServer(host='0.0.0.0', port=5505)
+    server_thread = threading.Thread(target=modbus_server.start, daemon=True)
+    server_thread.start()
+    print("[STARTUP] PLC4 Modbus server thread started")
+
+
 if __name__ == '__main__':
     print("""
     ╔═══════════════════════════════════════════════════════════╗
@@ -273,5 +460,8 @@ if __name__ == '__main__':
       vulnerabilities would be catastrophic and potentially fatal.
       DO NOT EXPOSE TO INTERNET.
     """)
+
+    # Start Modbus server in background
+    start_modbus_server()
 
     app.run(host='0.0.0.0', port=5013, debug=True)
