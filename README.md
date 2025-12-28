@@ -201,6 +201,20 @@ python3 attack.py
 - ⏰ **Timestamps:** Precise timing for incident response training
 - 🎯 **Attack details:** Function code, address, source IP displayed
 
+**Advanced Filtering & Export:**
+- 🔍 **Filter by PLC:** Show alerts from specific PLCs (PLC-1, PLC-2, PLC-3, PLC-4)
+- 🎚️ **Filter by Severity:** Display only CRITICAL, WARNING, or HIGH alerts
+- 🔄 **Real-time Updates:** Filters apply instantly without page reload
+- 📊 **Alert Count:** Shows "Showing X of Y" when filters are active
+- 📥 **CSV Export:** Download all alerts or only filtered results
+- 🧹 **Clear Filters:** One-click reset to show all alerts
+
+**Use Cases:**
+- **Incident Response:** Filter to "PLC-4 + CRITICAL only" → Export 17 safety attacks
+- **Training:** Filter to "PLC-1 only" → Focus students on one system
+- **Alert Triage:** Filter to "CRITICAL only" → Prioritize highest severity
+- **Forensics:** Export filtered CSV for incident reports and compliance
+
 This creates an immersive blue team training experience - watch operators get real-time notifications as attacks happen!
 
 ### 🎨 Visual SCADA HMI Interface
@@ -247,6 +261,9 @@ See [Docker Installation](#docker-installation) section for setup instructions.
 - **Multi-PLC Visual Alert System** with real-time attack detection
 - **Animated security alerts** - red pulsing CRITICAL, orange WARNING banners
 - **Unified alert dashboard** - all 4 PLCs report to single view
+- **Advanced filtering** - filter by PLC and severity for rapid triage
+- **CSV export** - download filtered alerts for incident reports
+- **Alert analytics** - real-time count and filtering statistics
 - **Modbus IDS** with signature & anomaly detection
 - **PCAP capture** for forensics training
 - **System Monitor** dashboard
@@ -340,7 +357,7 @@ See [Docker Installation](#docker-installation) section for setup instructions.
 
 ### Example Attacks
 
-**Testing All PLCs (Visual Alert System):**
+**Testing All PLCs (Visual Alert System with Filtering):**
 ```bash
 # Automated test - executes 8 attacks across all 4 PLCs
 python3 test_all_plcs.py
@@ -350,6 +367,12 @@ python3 attack.py
 
 # Open web UI to see visual alerts: http://localhost:5000/process (admin/admin)
 # Watch RED PULSING banners appear as attacks are detected!
+
+# In the web UI, try the filtering features:
+# - Uncheck PLC-1, PLC-2, PLC-3 to see only PLC-4 alerts
+# - Uncheck WARNING/HIGH to see only CRITICAL alerts
+# - Click "Export to CSV" to download filtered results
+# - Click "Clear Filters" to reset
 ```
 
 **Tank Overflow (PLC-1 - Visual Impact):**
