@@ -100,22 +100,19 @@ class ModbusTCPServer:
     """
     Minimal Modbus TCP Server - Intentionally Vulnerable
 
-    Implements only basic function codes:
-    - 0x03: Read Holding Registers
-    - 0x06: Write Single Register
-    - 0x10: Write Multiple Registers
-
-    NOT YET IMPLEMENTED (Future Enhancement):
-    - 0x01: Read Coils
-    - 0x05: Write Single Coil
-    - 0x0F: Write Multiple Coils
-    (Coil map exists in shared_state.py but handlers not implemented)
+    Implements realistic PLC function codes:
+    - 0x01: Read Coils (digital outputs - pumps, valves, motors)
+    - 0x03: Read Holding Registers (analog values - levels, temps, pressures)
+    - 0x05: Write Single Coil (control single digital output)
+    - 0x06: Write Single Register (set single analog value)
+    - 0x0F: Write Multiple Coils (control multiple digital outputs)
+    - 0x10: Write Multiple Registers (set multiple analog values)
 
     VULNERABILITIES (INTENTIONAL):
     - No authentication
     - No bounds checking
     - No input validation
-    - Allows writing to any register
+    - Allows writing to any coil or register
     - No rate limiting (connection limit exists but is bypassable)
     - No logging of malicious activity
     """
@@ -234,12 +231,21 @@ class ModbusTCPServer:
     def process_request(self, function_code, data):
         """Process Modbus request and return response PDU"""
         try:
-            if function_code == 0x03:
+            if function_code == 0x01:
+                # Read Coils
+                return self.read_coils(data)
+            elif function_code == 0x03:
                 # Read Holding Registers
                 return self.read_holding_registers(data)
+            elif function_code == 0x05:
+                # Write Single Coil
+                return self.write_single_coil(data)
             elif function_code == 0x06:
                 # Write Single Register
                 return self.write_single_register(data)
+            elif function_code == 0x0F:
+                # Write Multiple Coils
+                return self.write_multiple_coils(data)
             elif function_code == 0x10:
                 # Write Multiple Registers
                 return self.write_multiple_registers(data)
@@ -336,6 +342,100 @@ class ModbusTCPServer:
 
         # Build response
         return struct.pack('>BHH', 0x10, start_addr, count)
+
+    def read_coils(self, data):
+        """
+        Function Code 0x01: Read Coils
+        Request: [start_addr(2)] [count(2)]
+        Response: [0x01] [byte_count(1)] [coil_values(packed bits)]
+        """
+        start_addr, count = struct.unpack('>HH', data[:4])
+
+        print(f"[MODBUS] Read Coils: addr={start_addr}, count={count}")
+
+        # VULNERABILITY: No bounds checking
+        # Read coil values from shared state
+        coil_values = []
+        for i in range(count):
+            coil = start_addr + i
+            value = shared_state.coil_to_state(coil)
+            coil_values.append(value)
+
+        # Pack coils into bytes (8 coils per byte)
+        byte_count = (count + 7) // 8  # Round up to nearest byte
+        packed_bytes = []
+
+        for byte_idx in range(byte_count):
+            byte_val = 0
+            for bit_idx in range(8):
+                coil_idx = byte_idx * 8 + bit_idx
+                if coil_idx < count and coil_values[coil_idx]:
+                    byte_val |= (1 << bit_idx)
+            packed_bytes.append(byte_val)
+
+        # Build response
+        response = struct.pack('BB', 0x01, byte_count)
+        for byte_val in packed_bytes:
+            response += struct.pack('B', byte_val)
+
+        return response
+
+    def write_single_coil(self, data):
+        """
+        Function Code 0x05: Write Single Coil
+        Request: [addr(2)] [value(2)] - value is 0xFF00 (ON) or 0x0000 (OFF)
+        Response: [0x05] [addr(2)] [value(2)] (echo)
+        """
+        addr, value = struct.unpack('>HH', data[:4])
+
+        # Value should be 0xFF00 (ON) or 0x0000 (OFF)
+        coil_state = (value == 0xFF00)
+
+        print(f"[MODBUS] Write Single Coil: addr={addr}, value={coil_state}")
+
+        # VULNERABILITY: No authentication or authorization
+        # Convert coil to state and update
+        key, bool_value = shared_state.coil_to_state(addr, coil_state)
+        if key:
+            shared_state.update_state(key, bool_value)
+            print(f"[MODBUS] Updated {key} = {bool_value}")
+
+        # Echo request as response
+        return struct.pack('B', 0x05) + data[:4]
+
+    def write_multiple_coils(self, data):
+        """
+        Function Code 0x0F: Write Multiple Coils
+        Request: [start_addr(2)] [count(2)] [byte_count(1)] [coil_values(packed bits)]
+        Response: [0x0F] [start_addr(2)] [count(2)]
+        """
+        start_addr, count, byte_count = struct.unpack('>HHB', data[:5])
+
+        print(f"[MODBUS] Write Multiple Coils: addr={start_addr}, count={count}")
+
+        # VULNERABILITY: No validation of byte_count
+        # VULNERABILITY: No authentication
+
+        # Parse packed coil values
+        coil_bytes = data[5:5+byte_count]
+        coil_values = []
+
+        for byte_idx in range(byte_count):
+            byte_val = coil_bytes[byte_idx]
+            for bit_idx in range(8):
+                if len(coil_values) < count:
+                    coil_values.append(bool(byte_val & (1 << bit_idx)))
+
+        # Write to state
+        for i, value in enumerate(coil_values[:count]):
+            coil = start_addr + i
+            key, bool_value = shared_state.coil_to_state(coil, value)
+            if key:
+                shared_state.update_state(key, bool_value)
+                print(f"[MODBUS] Updated {key} = {bool_value}")
+
+        # Build response
+        return struct.pack('>BHH', 0x0F, start_addr, count)
 
 # Global Modbus server instance
 modbus_server = None

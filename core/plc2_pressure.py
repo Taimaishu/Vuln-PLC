@@ -359,10 +359,16 @@ class ModbusTCPServer:
     def process_request(self, function_code, data):
         """Process Modbus request and return response PDU"""
         try:
-            if function_code == 0x03:
+            if function_code == 0x01:
+                return self.read_coils(data)
+            elif function_code == 0x03:
                 return self.read_holding_registers(data)
+            elif function_code == 0x05:
+                return self.write_single_coil(data)
             elif function_code == 0x06:
                 return self.write_single_register(data)
+            elif function_code == 0x0F:
+                return self.write_multiple_coils(data)
             elif function_code == 0x10:
                 return self.write_multiple_registers(data)
             else:
@@ -421,6 +427,70 @@ class ModbusTCPServer:
                 print(f"[MODBUS] PLC2 Updated {key} = {converted_value}")
 
         return struct.pack('>BHH', 0x10, start_addr, count)
+
+    def read_coils(self, data):
+        """Function Code 0x01: Read Coils"""
+        start_addr, count = struct.unpack('>HH', data[:4])
+        print(f"[MODBUS] PLC2 Read Coils: addr={start_addr}, count={count}")
+
+        coil_values = []
+        for i in range(count):
+            coil = start_addr + i
+            value = shared_state.state_to_coil(coil)
+            coil_values.append(value)
+
+        byte_count = (count + 7) // 8
+        packed_bytes = []
+
+        for byte_idx in range(byte_count):
+            byte_val = 0
+            for bit_idx in range(8):
+                coil_idx = byte_idx * 8 + bit_idx
+                if coil_idx < count and coil_values[coil_idx]:
+                    byte_val |= (1 << bit_idx)
+            packed_bytes.append(byte_val)
+
+        response = struct.pack('BB', 0x01, byte_count)
+        for byte_val in packed_bytes:
+            response += struct.pack('B', byte_val)
+
+        return response
+
+    def write_single_coil(self, data):
+        """Function Code 0x05: Write Single Coil"""
+        addr, value = struct.unpack('>HH', data[:4])
+        coil_state = (value == 0xFF00)
+        print(f"[MODBUS] PLC2 Write Single Coil: addr={addr}, value={coil_state}")
+
+        key, bool_value = shared_state.coil_to_state(addr, coil_state)
+        if key:
+            shared_state.update_state(key, bool_value)
+            print(f"[MODBUS] PLC2 Updated {key} = {bool_value}")
+
+        return struct.pack('B', 0x05) + data[:4]
+
+    def write_multiple_coils(self, data):
+        """Function Code 0x0F: Write Multiple Coils"""
+        start_addr, count, byte_count = struct.unpack('>HHB', data[:5])
+        print(f"[MODBUS] PLC2 Write Multiple Coils: addr={start_addr}, count={count}")
+
+        coil_bytes = data[5:5+byte_count]
+        coil_values = []
+
+        for byte_idx in range(byte_count):
+            byte_val = coil_bytes[byte_idx]
+            for bit_idx in range(8):
+                if len(coil_values) < count:
+                    coil_values.append(bool(byte_val & (1 << bit_idx)))
+
+        for i, value in enumerate(coil_values[:count]):
+            coil = start_addr + i
+            key, bool_value = shared_state.coil_to_state(coil, value)
+            if key:
+                shared_state.update_state(key, bool_value)
+                print(f"[MODBUS] PLC2 Updated {key} = {bool_value}")
+
+        return struct.pack('>BHH', 0x0F, start_addr, count)
 
 
 def start_modbus_server():
