@@ -469,13 +469,13 @@ class ModbusTCPServer:
                 elif function_code == 0x10:
                     target = f"multiple registers starting at {address}"
 
-                message = f"Modbus write to {target} from {source_ip}"
+                message = f"PLC-1: Modbus write to {target} from {source_ip}"
 
                 # Critical addresses (safety systems)
                 if address in [0, 1]:  # Emergency stop, safety interlock
                     severity = "CRITICAL"
                     alert_type = "SAFETY_SYSTEM_TAMPER"
-                    message = f"🚨 CRITICAL: Safety system tampered! Write to {target} from {source_ip}"
+                    message = f"🚨 CRITICAL: PLC-1 Tank system tampered! Write to {target} from {source_ip}"
 
                 alert = {
                     'timestamp': datetime.now().strftime('%H:%M:%S'),
@@ -484,7 +484,8 @@ class ModbusTCPServer:
                     'message': message,
                     'source_ip': source_ip,
                     'function_code': function_code,
-                    'address': address
+                    'address': address,
+                    'plc': 'PLC-1'
                 }
 
             # Detection Rule 2: Invalid function codes
@@ -493,10 +494,11 @@ class ModbusTCPServer:
                     'timestamp': datetime.now().strftime('%H:%M:%S'),
                     'severity': 'HIGH',
                     'type': 'INVALID_FUNCTION_CODE',
-                    'message': f"Invalid Modbus function code 0x{function_code:02X} from {source_ip}",
+                    'message': f"PLC-1: Invalid Modbus function code 0x{function_code:02X} from {source_ip}",
                     'source_ip': source_ip,
                     'function_code': function_code,
-                    'address': 0
+                    'address': 0,
+                    'plc': 'PLC-1'
                 }
 
             # Store alert in shared state for visual display
