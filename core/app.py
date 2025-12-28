@@ -18,6 +18,9 @@ from datetime import datetime, timedelta
 import secrets
 import random
 import json
+import socket
+import threading
+import struct
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import shared_state
 
@@ -88,6 +91,232 @@ class ProcessStateProxy:
 
 # Global state for simulated process - now backed by shared storage
 PROCESS_STATE = ProcessStateProxy()
+
+# ============================================
+# MODBUS TCP SERVER IMPLEMENTATION
+# ============================================
+
+class ModbusTCPServer:
+    """
+    Minimal Modbus TCP Server - Intentionally Vulnerable
+
+    Implements only basic function codes:
+    - 0x03: Read Holding Registers
+    - 0x06: Write Single Register
+    - 0x10: Write Multiple Registers
+
+    VULNERABILITIES (INTENTIONAL):
+    - No authentication
+    - No bounds checking
+    - No input validation
+    - Allows writing to any register
+    - No rate limiting
+    - No logging of malicious activity
+    """
+
+    def __init__(self, host='0.0.0.0', port=5502):
+        self.host = host
+        self.port = port
+        self.server_socket = None
+        self.running = False
+
+    def start(self):
+        """Start the Modbus TCP server"""
+        try:
+            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.server_socket.bind((self.host, self.port))
+            self.server_socket.listen(5)
+            self.running = True
+
+            print(f"[MODBUS] Server started on {self.host}:{self.port}")
+
+            while self.running:
+                try:
+                    # Accept client connections
+                    client_socket, address = self.server_socket.accept()
+                    print(f"[MODBUS] Client connected from {address}")
+
+                    # Handle client in a separate thread
+                    client_thread = threading.Thread(
+                        target=self.handle_client,
+                        args=(client_socket, address),
+                        daemon=True
+                    )
+                    client_thread.start()
+
+                except Exception as e:
+                    if self.running:
+                        print(f"[MODBUS] Error accepting connection: {e}")
+
+        except Exception as e:
+            print(f"[MODBUS] Failed to start server: {e}")
+
+    def stop(self):
+        """Stop the Modbus TCP server"""
+        self.running = False
+        if self.server_socket:
+            self.server_socket.close()
+
+    def handle_client(self, client_socket, address):
+        """Handle a client connection"""
+        try:
+            while True:
+                # Read MBAP header (7 bytes)
+                header = client_socket.recv(7)
+                if not header or len(header) < 7:
+                    break
+
+                # Parse MBAP header
+                transaction_id, protocol_id, length, unit_id = struct.unpack('>HHHB', header)
+
+                # VULNERABILITY: No protocol validation
+                # Should check protocol_id == 0, but we don't
+
+                # Read PDU (Protocol Data Unit)
+                pdu = client_socket.recv(length - 1)  # -1 because unit_id already read
+                if not pdu:
+                    break
+
+                print(f"[MODBUS] Request from {address}: Trans={transaction_id}, Unit={unit_id}, PDU={pdu.hex()}")
+
+                # Parse function code
+                function_code = pdu[0]
+
+                # Process request and generate response
+                response_pdu = self.process_request(function_code, pdu[1:])
+
+                # Build MBAP response header
+                response_length = len(response_pdu) + 1  # +1 for unit_id
+                response_header = struct.pack('>HHHB', transaction_id, protocol_id, response_length, unit_id)
+
+                # Send response
+                response = response_header + response_pdu
+                client_socket.send(response)
+                print(f"[MODBUS] Response: {response.hex()}")
+
+        except Exception as e:
+            print(f"[MODBUS] Error handling client {address}: {e}")
+        finally:
+            client_socket.close()
+            print(f"[MODBUS] Client {address} disconnected")
+
+    def process_request(self, function_code, data):
+        """Process Modbus request and return response PDU"""
+        try:
+            if function_code == 0x03:
+                # Read Holding Registers
+                return self.read_holding_registers(data)
+            elif function_code == 0x06:
+                # Write Single Register
+                return self.write_single_register(data)
+            elif function_code == 0x10:
+                # Write Multiple Registers
+                return self.write_multiple_registers(data)
+            else:
+                # Unsupported function code
+                # VULNERABILITY: Should return proper exception, but we just echo
+                return struct.pack('B', function_code | 0x80) + struct.pack('B', 0x01)
+
+        except Exception as e:
+            print(f"[MODBUS] Error processing request: {e}")
+            # Return exception response
+            return struct.pack('B', function_code | 0x80) + struct.pack('B', 0x04)
+
+    def read_holding_registers(self, data):
+        """
+        Function Code 0x03: Read Holding Registers
+        Request: [start_addr(2)] [count(2)]
+        Response: [0x03] [byte_count(1)] [values(2*count)]
+        """
+        # VULNERABILITY: No bounds checking on data length
+        start_addr, count = struct.unpack('>HH', data[:4])
+
+        print(f"[MODBUS] Read Holding Registers: addr={start_addr}, count={count}")
+
+        # VULNERABILITY: No bounds checking on register range
+        # Should validate count <= 125 and addresses exist
+
+        # Read values from shared state
+        values = []
+        for i in range(count):
+            register = start_addr + i
+            value = shared_state.state_to_register(register)
+            values.append(value)
+
+        # Build response
+        byte_count = count * 2
+        response = struct.pack('BB', 0x03, byte_count)
+        for value in values:
+            response += struct.pack('>H', value)
+
+        return response
+
+    def write_single_register(self, data):
+        """
+        Function Code 0x06: Write Single Register
+        Request: [addr(2)] [value(2)]
+        Response: [0x06] [addr(2)] [value(2)] (echo)
+        """
+        # VULNERABILITY: No bounds checking
+        addr, value = struct.unpack('>HH', data[:4])
+
+        print(f"[MODBUS] Write Single Register: addr={addr}, value={value}")
+
+        # VULNERABILITY: No authentication or authorization
+        # Anyone can write any value to any register
+
+        # Convert register to state and update
+        key, converted_value = shared_state.register_to_state(addr, value)
+        if key:
+            shared_state.update_state(key, converted_value)
+            print(f"[MODBUS] Updated {key} = {converted_value}")
+
+        # Echo request as response
+        return struct.pack('B', 0x06) + data[:4]
+
+    def write_multiple_registers(self, data):
+        """
+        Function Code 0x10: Write Multiple Registers
+        Request: [start_addr(2)] [count(2)] [byte_count(1)] [values(2*count)]
+        Response: [0x10] [start_addr(2)] [count(2)]
+        """
+        # VULNERABILITY: No bounds checking
+        start_addr, count, byte_count = struct.unpack('>HHB', data[:5])
+
+        print(f"[MODBUS] Write Multiple Registers: addr={start_addr}, count={count}")
+
+        # VULNERABILITY: No validation of byte_count == count*2
+        # VULNERABILITY: No authentication
+
+        # Parse values
+        values_data = data[5:5+byte_count]
+        values = []
+        for i in range(count):
+            value = struct.unpack('>H', values_data[i*2:(i+1)*2])[0]
+            values.append(value)
+
+        # Write to state
+        for i, value in enumerate(values):
+            register = start_addr + i
+            key, converted_value = shared_state.register_to_state(register, value)
+            if key:
+                shared_state.update_state(key, converted_value)
+                print(f"[MODBUS] Updated {key} = {converted_value}")
+
+        # Build response
+        return struct.pack('>BHH', 0x10, start_addr, count)
+
+# Global Modbus server instance
+modbus_server = None
+
+def start_modbus_server():
+    """Start Modbus TCP server in background thread"""
+    global modbus_server
+    modbus_server = ModbusTCPServer(host='0.0.0.0', port=5502)
+    server_thread = threading.Thread(target=modbus_server.start, daemon=True)
+    server_thread.start()
+    print("[MODBUS] Background thread started")
 
 # Initialize database
 def init_db():
@@ -365,7 +594,7 @@ def plc_status():
         'model': 'VulnPLC-3000',
         'firmware': '1.0.0',
         'uptime': '42 days',
-        'modbus_port': 502,
+        'modbus_port': 5502,
         'registers': 100
     })
 
@@ -1308,9 +1537,23 @@ if __name__ == '__main__':
       • Information disclosure
       • Insufficient access controls
       • Session hijacking
+      • Unauthenticated Modbus access
+      • No register bounds checking
 
     WARNING: DO NOT EXPOSE TO INTERNET
     """)
 
+    # Initialize database
     init_db()
+
+    # Start Modbus TCP server in background thread
+    print("[STARTUP] Starting Modbus TCP server...")
+    start_modbus_server()
+
+    # Give Modbus server time to bind to port
+    import time
+    time.sleep(0.5)
+
+    # Start Flask application (this blocks)
+    print("[STARTUP] Starting Flask web interface...")
     app.run(host='0.0.0.0', port=5000, debug=True)
