@@ -17,6 +17,7 @@ services:
       - ./logs:/app/logs
       - ./pcaps:/app/pcaps
       - plc1_state:/tmp
+      - shared_state:/app/shared
     environment:
       - FLASK_ENV=development
       - PLC_ID=plc1
@@ -41,6 +42,7 @@ services:
       - ./logs:/app/logs
       - ./pcaps:/app/pcaps
       - plc2_state:/tmp
+      - shared_state:/app/shared
     environment:
       - FLASK_ENV=development
       - PLC_ID=plc2
@@ -65,6 +67,7 @@ services:
       - ./logs:/app/logs
       - ./pcaps:/app/pcaps
       - plc3_state:/tmp
+      - shared_state:/app/shared
     environment:
       - FLASK_ENV=development
       - PLC_ID=plc3
@@ -89,6 +92,7 @@ services:
       - ./logs:/app/logs
       - ./pcaps:/app/pcaps
       - plc4_state:/tmp
+      - shared_state:/app/shared
     environment:
       - FLASK_ENV=development
       - PLC_ID=plc4
@@ -259,6 +263,7 @@ volumes:
   plc2_state:
   plc3_state:
   plc4_state:
+  shared_state:
   historian_db:
   ids_state:
   monitor_state:

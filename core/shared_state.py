@@ -10,7 +10,7 @@ import threading
 import time
 import fcntl  # For file locking across processes
 
-STATE_FILE = '/tmp/vulnplc_state.json'
+STATE_FILE = '/app/shared/vulnplc_state.json'
 LOCK = threading.Lock()
 
 # Default state
@@ -51,6 +51,11 @@ DEFAULT_STATE = {
 
 def init_state():
     """Initialize state file if it doesn't exist"""
+    # Ensure the shared directory exists
+    state_dir = os.path.dirname(STATE_FILE)
+    if not os.path.exists(state_dir):
+        os.makedirs(state_dir, exist_ok=True)
+
     if not os.path.exists(STATE_FILE):
         save_state(DEFAULT_STATE)
     return load_state()
