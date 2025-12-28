@@ -160,6 +160,49 @@ modbus write-coil                   Pump 1 Status: false
 - Stability improvements (recv_exact, connection semaphore, socket timeout)
 - Works with real tools: `modbus-cli`, `pymodbus`, Metasploit SCADA modules
 
+### 🚨 Multi-PLC Visual Alert System
+**Real-time attack detection and visualization across all 4 PLCs:**
+
+All PLCs now feature integrated intrusion detection with live visual alerts in the web UI:
+
+- ✅ **Unified Alert System:** All 4 PLCs share security alerts through common state volume
+- ✅ **Real-Time Detection:** Modbus write operations trigger immediate alerts
+- ✅ **Animated UI Alerts:** Red pulsing banners for CRITICAL, orange for WARNING
+- ✅ **PLC Identification:** Every alert tagged with source PLC (PLC-1, PLC-2, PLC-3, PLC-4)
+- ✅ **Severity Levels:** Automatic classification based on target address
+- ✅ **Alert History:** Last 50 alerts visible in web dashboard with timestamps
+
+**What Gets Detected:**
+- **PLC-1 (Tank):** CRITICAL alerts for pump/valve tampering (coils 0, 1)
+- **PLC-2 (Pressure):** CRITICAL alerts for compressor/relief valve (coils 0, 4)
+- **PLC-3 (Temperature):** CRITICAL alerts for heater/cooler control (coils 0, 2)
+- **PLC-4 (Safety):** ALL writes flagged as CRITICAL (emergency shutdown system)
+
+**Try It Out:**
+```bash
+# Start containers
+sudo docker-compose up -d
+
+# Open web UI: http://localhost:5000/process (login: admin/admin)
+
+# Run automated test across all PLCs
+python3 test_all_plcs.py
+
+# Or use interactive attack tool
+python3 attack.py
+
+# Watch RED PULSING alerts appear in real-time!
+```
+
+**Visual Features:**
+- 🔴 **CRITICAL alerts:** Red pulsing banner with slide-down animation
+- 🟠 **WARNING alerts:** Orange banner with warning icon
+- 📊 **Alert grouping:** Organized by source PLC in history view
+- ⏰ **Timestamps:** Precise timing for incident response training
+- 🎯 **Attack details:** Function code, address, source IP displayed
+
+This creates an immersive blue team training experience - watch operators get real-time notifications as attacks happen!
+
 ### 🎨 Visual SCADA HMI Interface
 Real-time P&ID dashboard showing industrial processes:
 - Animated tank levels, pressure gauges, temperature displays
@@ -201,6 +244,9 @@ See [Docker Installation](#docker-installation) section for setup instructions.
 - **Privilege escalation paths**
 
 ### 🔵 Blue Team / Defenders
+- **Multi-PLC Visual Alert System** with real-time attack detection
+- **Animated security alerts** - red pulsing CRITICAL, orange WARNING banners
+- **Unified alert dashboard** - all 4 PLCs report to single view
 - **Modbus IDS** with signature & anomaly detection
 - **PCAP capture** for forensics training
 - **System Monitor** dashboard
@@ -293,6 +339,18 @@ See [Docker Installation](#docker-installation) section for setup instructions.
 - PLC-4: `127.0.0.1:5505` ✅ Real Modbus TCP
 
 ### Example Attacks
+
+**Testing All PLCs (Visual Alert System):**
+```bash
+# Automated test - executes 8 attacks across all 4 PLCs
+python3 test_all_plcs.py
+
+# Interactive attack menu - choose your target
+python3 attack.py
+
+# Open web UI to see visual alerts: http://localhost:5000/process (admin/admin)
+# Watch RED PULSING banners appear as attacks are detected!
+```
 
 **Tank Overflow (PLC-1 - Visual Impact):**
 ```bash
