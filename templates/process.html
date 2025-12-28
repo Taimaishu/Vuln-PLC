@@ -272,6 +272,61 @@
         .export-btn:hover {
             background: #27ae60;
         }
+        .alert-filters {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .filter-group-title {
+            font-weight: bold;
+            font-size: 13px;
+            color: #333;
+            margin-bottom: 3px;
+        }
+        .filter-options {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .filter-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .filter-checkbox input[type="checkbox"] {
+            cursor: pointer;
+        }
+        .clear-filters-btn {
+            background: #95a5a6;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.3s;
+            margin-left: auto;
+        }
+        .clear-filters-btn:hover {
+            background: #7f8c8d;
+        }
+        .alert-count {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-left: 10px;
+        }
     </style>
 </head>
 <body>
@@ -301,9 +356,55 @@
         <!-- Alert History Section -->
         <div id="alertHistory" class="alert-history">
             <div class="alert-history-header">
-                <strong>⚠️ Recent Security Events:</strong>
+                <strong>⚠️ Recent Security Events: <span id="alertCount" class="alert-count"></span></strong>
                 <button class="export-btn" onclick="exportAlerts()">📥 Export to CSV</button>
             </div>
+
+            <!-- Alert Filters -->
+            <div class="alert-filters">
+                <div class="filter-group">
+                    <div class="filter-group-title">Filter by PLC:</div>
+                    <div class="filter-options">
+                        <label class="filter-checkbox">
+                            <input type="checkbox" id="filter-plc1" checked onchange="applyFilters()">
+                            <span>PLC-1</span>
+                        </label>
+                        <label class="filter-checkbox">
+                            <input type="checkbox" id="filter-plc2" checked onchange="applyFilters()">
+                            <span>PLC-2</span>
+                        </label>
+                        <label class="filter-checkbox">
+                            <input type="checkbox" id="filter-plc3" checked onchange="applyFilters()">
+                            <span>PLC-3</span>
+                        </label>
+                        <label class="filter-checkbox">
+                            <input type="checkbox" id="filter-plc4" checked onchange="applyFilters()">
+                            <span>PLC-4</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <div class="filter-group-title">Filter by Severity:</div>
+                    <div class="filter-options">
+                        <label class="filter-checkbox">
+                            <input type="checkbox" id="filter-critical" checked onchange="applyFilters()">
+                            <span>🚨 CRITICAL</span>
+                        </label>
+                        <label class="filter-checkbox">
+                            <input type="checkbox" id="filter-warning" checked onchange="applyFilters()">
+                            <span>⚠️ WARNING</span>
+                        </label>
+                        <label class="filter-checkbox">
+                            <input type="checkbox" id="filter-high" checked onchange="applyFilters()">
+                            <span>⚠️ HIGH</span>
+                        </label>
+                    </div>
+                </div>
+
+                <button class="clear-filters-btn" onclick="clearFilters()">Clear Filters</button>
+            </div>
+
             <div id="alertHistoryContent"></div>
         </div>
         <div class="card">
@@ -524,6 +625,47 @@
             alertShown = false;
         }
 
+        function getFilteredAlerts() {
+            // Get filter states
+            const plcFilters = {
+                'PLC-1': document.getElementById('filter-plc1').checked,
+                'PLC-2': document.getElementById('filter-plc2').checked,
+                'PLC-3': document.getElementById('filter-plc3').checked,
+                'PLC-4': document.getElementById('filter-plc4').checked
+            };
+
+            const severityFilters = {
+                'CRITICAL': document.getElementById('filter-critical').checked,
+                'WARNING': document.getElementById('filter-warning').checked,
+                'HIGH': document.getElementById('filter-high').checked
+            };
+
+            // Filter alerts
+            return alertHistory.filter(alert => {
+                const plc = alert.plc || 'PLC-1'; // Default to PLC-1 for old alerts
+                const severity = alert.severity || 'WARNING';
+
+                return plcFilters[plc] && severityFilters[severity];
+            });
+        }
+
+        function applyFilters() {
+            updateAlertHistory();
+        }
+
+        function clearFilters() {
+            // Check all filters
+            document.getElementById('filter-plc1').checked = true;
+            document.getElementById('filter-plc2').checked = true;
+            document.getElementById('filter-plc3').checked = true;
+            document.getElementById('filter-plc4').checked = true;
+            document.getElementById('filter-critical').checked = true;
+            document.getElementById('filter-warning').checked = true;
+            document.getElementById('filter-high').checked = true;
+
+            applyFilters();
+        }
+
         function updateAlertHistory() {
             if (alertHistory.length === 0) {
                 document.getElementById('alertHistory').classList.remove('show');
@@ -532,8 +674,24 @@
 
             document.getElementById('alertHistory').classList.add('show');
 
+            // Get filtered alerts
+            const filtered = getFilteredAlerts();
+            const recentAlerts = filtered.slice(-10).reverse(); // Last 10 filtered alerts
+
+            // Update alert count
+            const countElement = document.getElementById('alertCount');
+            if (filtered.length < alertHistory.length) {
+                countElement.textContent = `(Showing ${filtered.length} of ${alertHistory.length})`;
+            } else {
+                countElement.textContent = `(${alertHistory.length} total)`;
+            }
+
             const content = document.getElementById('alertHistoryContent');
-            const recentAlerts = alertHistory.slice(-5).reverse(); // Last 5 alerts
+
+            if (recentAlerts.length === 0) {
+                content.innerHTML = '<div style="padding: 10px; text-align: center; color: #7f8c8d;">No alerts match current filters</div>';
+                return;
+            }
 
             content.innerHTML = recentAlerts.map(alert => {
                 const severityColor = {
@@ -542,9 +700,12 @@
                     'WARNING': '#f39c12'
                 }[alert.severity] || '#95a5a6';
 
+                const plc = alert.plc || 'PLC-1';
+
                 return `
                     <div style="padding: 5px 0; border-bottom: 1px solid #e0e0e0;">
                         <span style="color: ${severityColor}; font-weight: bold;">[${alert.timestamp}]</span>
+                        <span style="background: #e8f4f8; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-right: 5px;">${plc}</span>
                         <span style="color: ${severityColor};">${alert.type}:</span>
                         ${alert.message}
                     </div>
@@ -553,8 +714,50 @@
         }
 
         function exportAlerts() {
-            // Trigger CSV download
-            window.location.href = '/api/security/alerts/export';
+            // Get filtered alerts
+            const filtered = getFilteredAlerts();
+
+            if (filtered.length === 0) {
+                alert('No alerts to export with current filters');
+                return;
+            }
+
+            // Create CSV content
+            const headers = ['Timestamp', 'PLC', 'Severity', 'Type', 'Message', 'Source IP', 'Function Code', 'Address'];
+            const rows = filtered.map(alert => [
+                alert.timestamp || '',
+                alert.plc || 'PLC-1',
+                alert.severity || '',
+                alert.type || '',
+                alert.message || '',
+                alert.source_ip || '',
+                `0x${(alert.function_code || 0).toString(16).padStart(2, '0')}`,
+                alert.address || ''
+            ]);
+
+            // Build CSV
+            let csv = headers.join(',') + '\n';
+            rows.forEach(row => {
+                csv += row.map(field => {
+                    // Escape fields with commas or quotes
+                    const str = String(field);
+                    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                        return '"' + str.replace(/"/g, '""') + '"';
+                    }
+                    return str;
+                }).join(',') + '\n';
+            });
+
+            // Download
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `security_alerts_filtered_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
         }
 
         // Check for alerts every 2 seconds
