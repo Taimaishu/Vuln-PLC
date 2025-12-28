@@ -341,6 +341,10 @@ class ModbusTCPServer:
                 print(f"[MODBUS] PLC2 Request from {address}: Trans={transaction_id}, Unit={unit_id}, PDU={pdu.hex()}")
 
                 function_code = pdu[0]
+
+                # ATTACK DETECTION: Generate visual alert for write operations
+                self._detect_attack(address[0], function_code, pdu[1:])
+
                 response_pdu = self.process_request(function_code, pdu[1:])
 
                 response_length = len(response_pdu) + 1
@@ -491,6 +495,82 @@ class ModbusTCPServer:
                 print(f"[MODBUS] PLC2 Updated {key} = {bool_value}")
 
         return struct.pack('>BHH', 0x0F, start_addr, count)
+
+    def _detect_attack(self, source_ip, function_code, data):
+        """
+        Detect potential attacks and generate visual alerts
+        Educational IDS - shows users when their attacks are detected!
+        """
+        try:
+            # Parse address from request data
+            address = 0
+            if len(data) >= 2:
+                address = struct.unpack('>H', data[:2])[0]
+
+            alert = None
+
+            # Detection Rule 1: Write operations (potential attack)
+            if function_code in [0x05, 0x06, 0x0F, 0x10]:
+                severity = "WARNING"
+                alert_type = "UNAUTHORIZED_WRITE"
+
+                # Determine what was written
+                target = ""
+                if function_code == 0x05:
+                    target = f"coil {address}"
+                elif function_code == 0x06:
+                    target = f"register {address}"
+                elif function_code == 0x0F:
+                    target = f"multiple coils starting at {address}"
+                elif function_code == 0x10:
+                    target = f"multiple registers starting at {address}"
+
+                message = f"PLC-2: Modbus write to {target} from {source_ip}"
+
+                # Critical addresses (compressor, relief valve)
+                if address in [0, 4]:  # Compressor, relief valve
+                    severity = "CRITICAL"
+                    alert_type = "PRESSURE_SYSTEM_TAMPER"
+                    message = f"🚨 CRITICAL: PLC-2 Pressure system tampered! Write to {target} from {source_ip}"
+
+                alert = {
+                    'timestamp': datetime.now().strftime('%H:%M:%S'),
+                    'severity': severity,
+                    'type': alert_type,
+                    'message': message,
+                    'source_ip': source_ip,
+                    'function_code': function_code,
+                    'address': address,
+                    'plc': 'PLC-2'
+                }
+
+            # Detection Rule 2: Invalid function codes
+            elif function_code not in [0x01, 0x03, 0x05, 0x06, 0x0F, 0x10]:
+                alert = {
+                    'timestamp': datetime.now().strftime('%H:%M:%S'),
+                    'severity': 'HIGH',
+                    'type': 'INVALID_FUNCTION_CODE',
+                    'message': f"PLC-2: Invalid Modbus function code 0x{function_code:02X} from {source_ip}",
+                    'source_ip': source_ip,
+                    'function_code': function_code,
+                    'address': 0,
+                    'plc': 'PLC-2'
+                }
+
+            # Store alert in shared state for visual display
+            if alert:
+                alerts = shared_state.get_state('security_alerts', [])
+                alerts.append(alert)
+
+                # Keep only last 50 alerts
+                if len(alerts) > 50:
+                    alerts = alerts[-50:]
+
+                shared_state.update_state('security_alerts', alerts)
+                print(f"[SECURITY] PLC2 {alert['severity']}: {alert['message']}")
+
+        except Exception as e:
+            print(f"[SECURITY] PLC2 Error detecting attack: {e}")
 
 
 def start_modbus_server():
