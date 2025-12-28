@@ -253,6 +253,25 @@
         .alert-history.show {
             display: block;
         }
+        .alert-history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .export-btn {
+            background: #2ecc71;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.3s;
+        }
+        .export-btn:hover {
+            background: #27ae60;
+        }
     </style>
 </head>
 <body>
@@ -281,7 +300,10 @@
     <div class="container">
         <!-- Alert History Section -->
         <div id="alertHistory" class="alert-history">
-            <strong>⚠️ Recent Security Events:</strong>
+            <div class="alert-history-header">
+                <strong>⚠️ Recent Security Events:</strong>
+                <button class="export-btn" onclick="exportAlerts()">📥 Export to CSV</button>
+            </div>
             <div id="alertHistoryContent"></div>
         </div>
         <div class="card">
@@ -528,6 +550,11 @@
                     </div>
                 `;
             }).join('');
+        }
+
+        function exportAlerts() {
+            // Trigger CSV download
+            window.location.href = '/api/security/alerts/export';
         }
 
         // Check for alerts every 2 seconds

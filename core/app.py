@@ -7,9 +7,11 @@ INTENTIONALLY VULNERABLE - DO NOT USE IN PRODUCTION
 Contains: SQL Injection, Default Creds, Command Injection, etc.
 """
 
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash, make_response
 from functools import wraps
 import sqlite3
+import csv
+from io import StringIO
 import os
 import sys
 import subprocess
@@ -1115,6 +1117,43 @@ def clear_security_alerts():
     shared_state.update_state('security_alerts', [])
     log_action(session['username'], 'clear_alerts', 'Cleared all security alerts')
     return jsonify({'success': True})
+
+@app.route('/api/security/alerts/export')
+def export_security_alerts():
+    """Export security alerts to CSV file"""
+    # Get all alerts
+    alerts = shared_state.get_state('security_alerts', [])
+
+    # Create CSV in memory
+    si = StringIO()
+    writer = csv.writer(si)
+
+    # Write header
+    writer.writerow(['Timestamp', 'PLC', 'Severity', 'Type', 'Message', 'Source IP', 'Function Code', 'Address'])
+
+    # Write alert data
+    for alert in alerts:
+        writer.writerow([
+            alert.get('timestamp', ''),
+            alert.get('plc', 'Unknown'),
+            alert.get('severity', ''),
+            alert.get('type', ''),
+            alert.get('message', ''),
+            alert.get('source_ip', ''),
+            f"0x{alert.get('function_code', 0):02X}",
+            alert.get('address', '')
+        ])
+
+    # Create response with CSV
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = f"attachment; filename=security_alerts_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    output.headers["Content-type"] = "text/csv"
+
+    # Log export action
+    if 'username' in session:
+        log_action(session['username'], 'export_alerts', f'Exported {len(alerts)} security alerts to CSV')
+
+    return output
 
 @app.route('/api/trending/data')
 def trending_data():
