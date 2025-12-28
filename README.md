@@ -82,6 +82,68 @@ client.close()
 
 ---
 
+## 🎬 Interactive Demo Scripts
+
+**New to ICS attacks? Start here!** We've created interactive demo scripts that show you exactly how Modbus attacks affect the PLCs in real-time.
+
+### Quick Demo (Recommended for First-Time Users)
+
+```bash
+# Start containers
+sudo docker-compose up -d
+
+# Run the visual demo - executes 6 real attacks!
+python3 demo_with_visuals.py
+
+# Watch the effects in your browser:
+# http://localhost:5000/process (login: admin/admin)
+```
+
+**What you'll see:**
+- ✅ 6 realistic attack scenarios executed live
+- ✅ Real-time state changes in the web UI
+- ✅ Detailed explanations of each attack's impact
+- ✅ Visual indicators showing pump/valve status changes
+
+### Available Demo Tools
+
+**1. Full Interactive Demo** (`demo_with_visuals.py`)
+```bash
+python3 demo_with_visuals.py
+```
+Executes all 6 attacks with detailed output:
+- Tank overflow attack (pump ON + valve CLOSED)
+- Pressure vessel rupture (compressor ON + relief valve CLOSED)
+- Safety system bypass (emergency stop + interlock DISABLED)
+
+**2. Quick Verification** (`quick_test.sh`)
+```bash
+bash quick_test.sh
+```
+Tests if Modbus attacks are working and visible in the web UI. Perfect for troubleshooting.
+
+**3. Complete Visual Guide** (`ATTACK_DEMO.md`)
+- Step-by-step screenshots and examples
+- Explains WHERE to look in the web UI
+- Troubleshooting tips
+- Understanding cause-and-effect
+
+### Understanding the Attacks
+
+The demo scripts help you see the **cause-and-effect** relationship:
+
+```
+Terminal (Cause)                    Browser (Effect)
+─────────────────────              ─────────────────────
+modbus write-coil                   Pump 1 Status: false
+127.0.0.1:5502 0 1     ──────►     Changes to TRUE ✓
+(Turn pump ON)                      (Visible in 2 seconds)
+```
+
+**Why this matters:** In real ICS attacks, adversaries use Modbus to control equipment while operators watch helplessly on their HMI screens. These demos let you experience both sides!
+
+---
+
 ## 🌟 What's New in v2.0?
 
 ### 🔥 Real Modbus TCP on ALL 4 PLCs
@@ -278,6 +340,21 @@ curl -X POST http://localhost:5000/login \
 ## 📚 Suggested Learning Path
 
 New to ICS security? Follow this structured progression from beginner to advanced:
+
+### **Phase 0: Interactive Demos** ⭐ Start Here!
+**Goal:** See attacks in action before diving deep
+
+**🎬 Run the visual demo first:**
+```bash
+python3 demo_with_visuals.py  # Watch 6 attacks happen live!
+```
+
+This gives you immediate hands-on experience and shows the cause-and-effect relationship between Modbus commands and physical equipment. Once you've seen the attacks work, you'll understand what you're looking for in the phases below.
+
+**📖 Read the visual guide:**
+- Open `ATTACK_DEMO.md` for detailed explanations
+- Learn WHERE to see attack effects in the web UI
+- Understand the different types of industrial attacks
 
 ### **Phase 1: Reconnaissance & Enumeration**
 **Goal:** Understand the target environment
@@ -584,5 +661,5 @@ If you find Vuln-PLC useful, please consider starring the repository!
 
 **Built with ❤️ for the ICS security community**
 
-*Last Updated: 2024-12-07*
+*Last Updated: 2025-12-28*
 *Version: 2.0.0*
