@@ -105,26 +105,35 @@ class ModbusTCPServer:
     - 0x06: Write Single Register
     - 0x10: Write Multiple Registers
 
+    NOT YET IMPLEMENTED (Future Enhancement):
+    - 0x01: Read Coils
+    - 0x05: Write Single Coil
+    - 0x0F: Write Multiple Coils
+    (Coil map exists in shared_state.py but handlers not implemented)
+
     VULNERABILITIES (INTENTIONAL):
     - No authentication
     - No bounds checking
     - No input validation
     - Allows writing to any register
-    - No rate limiting
+    - No rate limiting (connection limit exists but is bypassable)
     - No logging of malicious activity
     """
 
-    def __init__(self, host='0.0.0.0', port=5502):
+    def __init__(self, host='0.0.0.0', port=5502, max_connections=50):
         self.host = host
         self.port = port
         self.server_socket = None
         self.running = False
+        # Connection semaphore - still DoS-able but requires more effort
+        self.connection_semaphore = threading.Semaphore(max_connections)
 
     def start(self):
         """Start the Modbus TCP server"""
         try:
             self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.server_socket.settimeout(1.0)  # Allow graceful shutdown
             self.server_socket.bind((self.host, self.port))
             self.server_socket.listen(5)
             self.running = True
@@ -137,14 +146,18 @@ class ModbusTCPServer:
                     client_socket, address = self.server_socket.accept()
                     print(f"[MODBUS] Client connected from {address}")
 
-                    # Handle client in a separate thread
+                    # Use semaphore to limit concurrent connections
+                    # Still vulnerable to DoS but requires more sophistication
                     client_thread = threading.Thread(
-                        target=self.handle_client,
+                        target=self._handle_client_with_semaphore,
                         args=(client_socket, address),
                         daemon=True
                     )
                     client_thread.start()
 
+                except socket.timeout:
+                    # Expected - allows checking self.running
+                    continue
                 except Exception as e:
                     if self.running:
                         print(f"[MODBUS] Error accepting connection: {e}")
@@ -158,25 +171,42 @@ class ModbusTCPServer:
         if self.server_socket:
             self.server_socket.close()
 
+    def recv_exact(self, sock, size):
+        """
+        Receive exactly 'size' bytes from socket.
+        recv() does not guarantee all bytes in one call - this fixes that.
+        Prevents broken pipes and hangs with real Modbus tools.
+        """
+        data = b''
+        while len(data) < size:
+            chunk = sock.recv(size - len(data))
+            if not chunk:
+                raise ConnectionError("Socket closed before receiving all data")
+            data += chunk
+        return data
+
+    def _handle_client_with_semaphore(self, client_socket, address):
+        """Wrapper to handle client with connection semaphore"""
+        with self.connection_semaphore:
+            self.handle_client(client_socket, address)
+
     def handle_client(self, client_socket, address):
         """Handle a client connection"""
         try:
             while True:
-                # Read MBAP header (7 bytes)
-                header = client_socket.recv(7)
-                if not header or len(header) < 7:
-                    break
+                # Read MBAP header (7 bytes) - use recv_exact for message safety
+                header = self.recv_exact(client_socket, 7)
 
                 # Parse MBAP header
                 transaction_id, protocol_id, length, unit_id = struct.unpack('>HHHB', header)
 
-                # VULNERABILITY: No protocol validation
-                # Should check protocol_id == 0, but we don't
+                # VULNERABILITY: No protocol validation - we accept invalid protocol IDs
+                # Log for educational purposes (helps students learn the protocol)
+                if protocol_id != 0:
+                    print(f"[MODBUS] WARNING: Non-standard protocol ID {protocol_id} from {address} (expected 0)")
 
-                # Read PDU (Protocol Data Unit)
-                pdu = client_socket.recv(length - 1)  # -1 because unit_id already read
-                if not pdu:
-                    break
+                # Read PDU (Protocol Data Unit) - use recv_exact for message safety
+                pdu = self.recv_exact(client_socket, length - 1)  # -1 because unit_id already read
 
                 print(f"[MODBUS] Request from {address}: Trans={transaction_id}, Unit={unit_id}, PDU={pdu.hex()}")
 

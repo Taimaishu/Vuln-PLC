@@ -15,19 +15,21 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'core'))
 import shared_state
 
 class ModbusTCPServer:
-    """Minimal Modbus TCP Server"""
+    """Minimal Modbus TCP Server - Improved Stability"""
 
-    def __init__(self, host='0.0.0.0', port=5555):  # Use different port
+    def __init__(self, host='0.0.0.0', port=5555, max_connections=50):  # Use different port
         self.host = host
         self.port = port
         self.server_socket = None
         self.running = False
+        self.connection_semaphore = threading.Semaphore(max_connections)
 
     def start(self):
         """Start the Modbus TCP server"""
         try:
             self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.server_socket.settimeout(1.0)  # Allow graceful shutdown
             self.server_socket.bind((self.host, self.port))
             self.server_socket.listen(5)
             self.running = True
@@ -41,14 +43,16 @@ class ModbusTCPServer:
                     client_socket, address = self.server_socket.accept()
                     print(f"[MODBUS] Client connected from {address}")
 
-                    # Handle client in a separate thread
+                    # Handle client with semaphore
                     client_thread = threading.Thread(
-                        target=self.handle_client,
+                        target=self._handle_client_with_semaphore,
                         args=(client_socket, address),
                         daemon=True
                     )
                     client_thread.start()
 
+                except socket.timeout:
+                    continue
                 except KeyboardInterrupt:
                     print("\n[MODBUS] Shutting down...")
                     break
@@ -65,22 +69,37 @@ class ModbusTCPServer:
         if self.server_socket:
             self.server_socket.close()
 
+    def recv_exact(self, sock, size):
+        """Receive exactly 'size' bytes from socket"""
+        data = b''
+        while len(data) < size:
+            chunk = sock.recv(size - len(data))
+            if not chunk:
+                raise ConnectionError("Socket closed before receiving all data")
+            data += chunk
+        return data
+
+    def _handle_client_with_semaphore(self, client_socket, address):
+        """Wrapper to handle client with connection semaphore"""
+        with self.connection_semaphore:
+            self.handle_client(client_socket, address)
+
     def handle_client(self, client_socket, address):
         """Handle a client connection"""
         try:
             while True:
-                # Read MBAP header (7 bytes)
-                header = client_socket.recv(7)
-                if not header or len(header) < 7:
-                    break
+                # Read MBAP header (7 bytes) - use recv_exact for message safety
+                header = self.recv_exact(client_socket, 7)
 
                 # Parse MBAP header
                 transaction_id, protocol_id, length, unit_id = struct.unpack('>HHHB', header)
 
-                # Read PDU (Protocol Data Unit)
-                pdu = client_socket.recv(length - 1)  # -1 because unit_id already read
-                if not pdu:
-                    break
+                # Log invalid protocol IDs (educational - helps students learn)
+                if protocol_id != 0:
+                    print(f"[MODBUS] WARNING: Non-standard protocol ID {protocol_id} from {address} (expected 0)")
+
+                # Read PDU (Protocol Data Unit) - use recv_exact for message safety
+                pdu = self.recv_exact(client_socket, length - 1)  # -1 because unit_id already read
 
                 print(f"[MODBUS] Request from {address}: Trans={transaction_id}, Unit={unit_id}, PDU={pdu.hex()}")
 
