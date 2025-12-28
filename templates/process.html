@@ -157,6 +157,102 @@
             background: #f8d7da;
             color: #721c24;
         }
+        /* Security Alert Banner Styles */
+        .alert-banner {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            right: 0;
+            padding: 15px 30px;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 1000;
+            animation: slideDown 0.3s ease-out;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .alert-banner.show {
+            display: flex;
+        }
+        .alert-banner.critical {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            animation: pulse 1s infinite;
+        }
+        .alert-banner.warning {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+        }
+        .alert-banner.high {
+            background: linear-gradient(135deg, #e67e22, #d35400);
+            color: white;
+        }
+        .alert-content {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex: 1;
+        }
+        .alert-icon {
+            font-size: 24px;
+            animation: bounce 2s infinite;
+        }
+        .alert-message {
+            flex: 1;
+        }
+        .alert-message .alert-type {
+            font-weight: bold;
+            font-size: 16px;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .alert-message .alert-details {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .alert-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px 15px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        .alert-close:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        @keyframes slideDown {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.9; }
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        .alert-history {
+            background: #fff3cd;
+            border-left: 4px solid #f39c12;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            font-size: 14px;
+            display: none;
+        }
+        .alert-history.show {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -170,7 +266,24 @@
         </div>
     </div>
 
+    <!-- Security Alert Banner -->
+    <div id="alertBanner" class="alert-banner">
+        <div class="alert-content">
+            <span class="alert-icon">🚨</span>
+            <div class="alert-message">
+                <span class="alert-type" id="alertType">SECURITY ALERT</span>
+                <span class="alert-details" id="alertDetails">Unauthorized access detected</span>
+            </div>
+        </div>
+        <button class="alert-close" onclick="dismissAlert()">×</button>
+    </div>
+
     <div class="container">
+        <!-- Alert History Section -->
+        <div id="alertHistory" class="alert-history">
+            <strong>⚠️ Recent Security Events:</strong>
+            <div id="alertHistoryContent"></div>
+        </div>
         <div class="card">
             <h2>Equipment Control</h2>
             <div class="controls-grid">
@@ -327,6 +440,101 @@
         // Update status every 3 seconds
         setInterval(updateStatus, 3000);
         updateStatus();
+
+        // Security Alert System
+        let currentAlert = null;
+        let alertShown = false;
+        let alertHistory = [];
+
+        function checkSecurityAlerts() {
+            fetch('/api/security/alerts')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success && data.alerts && data.alerts.length > 0) {
+                        const latest = data.alerts[data.alerts.length - 1];
+
+                        // Show banner if new alert
+                        if (!currentAlert || currentAlert.timestamp !== latest.timestamp) {
+                            currentAlert = latest;
+                            showAlert(latest);
+                        }
+
+                        // Update alert history
+                        alertHistory = data.alerts;
+                        updateAlertHistory();
+                    }
+                })
+                .catch(err => console.error('Error checking alerts:', err));
+        }
+
+        function showAlert(alert) {
+            const banner = document.getElementById('alertBanner');
+            const alertType = document.getElementById('alertType');
+            const alertDetails = document.getElementById('alertDetails');
+            const alertIcon = document.querySelector('.alert-icon');
+
+            // Set alert content
+            alertType.textContent = alert.type.replace(/_/g, ' ');
+            alertDetails.textContent = `[${alert.timestamp}] ${alert.message}`;
+
+            // Set severity class and icon
+            banner.className = 'alert-banner show ' + alert.severity.toLowerCase();
+
+            if (alert.severity === 'CRITICAL') {
+                alertIcon.textContent = '🚨';
+            } else if (alert.severity === 'HIGH') {
+                alertIcon.textContent = '⚠️';
+            } else {
+                alertIcon.textContent = '⚠️';
+            }
+
+            // Play alert sound (optional - commented out to avoid annoyance)
+            // if (alert.severity === 'CRITICAL') {
+            //     playAlertSound();
+            // }
+
+            alertShown = true;
+        }
+
+        function dismissAlert() {
+            const banner = document.getElementById('alertBanner');
+            banner.classList.remove('show');
+            alertShown = false;
+        }
+
+        function updateAlertHistory() {
+            if (alertHistory.length === 0) {
+                document.getElementById('alertHistory').classList.remove('show');
+                return;
+            }
+
+            document.getElementById('alertHistory').classList.add('show');
+
+            const content = document.getElementById('alertHistoryContent');
+            const recentAlerts = alertHistory.slice(-5).reverse(); // Last 5 alerts
+
+            content.innerHTML = recentAlerts.map(alert => {
+                const severityColor = {
+                    'CRITICAL': '#e74c3c',
+                    'HIGH': '#e67e22',
+                    'WARNING': '#f39c12'
+                }[alert.severity] || '#95a5a6';
+
+                return `
+                    <div style="padding: 5px 0; border-bottom: 1px solid #e0e0e0;">
+                        <span style="color: ${severityColor}; font-weight: bold;">[${alert.timestamp}]</span>
+                        <span style="color: ${severityColor};">${alert.type}:</span>
+                        ${alert.message}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Check for alerts every 2 seconds
+        setInterval(checkSecurityAlerts, 2000);
+        checkSecurityAlerts();
+
+        console.log('🛡️ Security Alert System active - watching for attacks...');
     </script>
 </body>
 </html>

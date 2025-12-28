@@ -210,6 +210,9 @@ class ModbusTCPServer:
                 # Parse function code
                 function_code = pdu[0]
 
+                # ATTACK DETECTION: Generate visual alert for write operations
+                self._detect_attack(address[0], function_code, pdu[1:])
+
                 # Process request and generate response
                 response_pdu = self.process_request(function_code, pdu[1:])
 
@@ -436,6 +439,80 @@ class ModbusTCPServer:
 
         # Build response
         return struct.pack('>BHH', 0x0F, start_addr, count)
+
+    def _detect_attack(self, source_ip, function_code, data):
+        """
+        Detect potential attacks and generate visual alerts
+        Educational IDS - shows users when their attacks are detected!
+        """
+        try:
+            # Parse address from request data
+            address = 0
+            if len(data) >= 2:
+                address = struct.unpack('>H', data[:2])[0]
+
+            alert = None
+
+            # Detection Rule 1: Write operations (potential attack)
+            if function_code in [0x05, 0x06, 0x0F, 0x10]:
+                severity = "WARNING"
+                alert_type = "UNAUTHORIZED_WRITE"
+
+                # Determine what was written
+                target = ""
+                if function_code == 0x05:
+                    target = f"coil {address}"
+                elif function_code == 0x06:
+                    target = f"register {address}"
+                elif function_code == 0x0F:
+                    target = f"multiple coils starting at {address}"
+                elif function_code == 0x10:
+                    target = f"multiple registers starting at {address}"
+
+                message = f"Modbus write to {target} from {source_ip}"
+
+                # Critical addresses (safety systems)
+                if address in [0, 1]:  # Emergency stop, safety interlock
+                    severity = "CRITICAL"
+                    alert_type = "SAFETY_SYSTEM_TAMPER"
+                    message = f"🚨 CRITICAL: Safety system tampered! Write to {target} from {source_ip}"
+
+                alert = {
+                    'timestamp': datetime.now().strftime('%H:%M:%S'),
+                    'severity': severity,
+                    'type': alert_type,
+                    'message': message,
+                    'source_ip': source_ip,
+                    'function_code': function_code,
+                    'address': address
+                }
+
+            # Detection Rule 2: Invalid function codes
+            elif function_code not in [0x01, 0x03, 0x05, 0x06, 0x0F, 0x10]:
+                alert = {
+                    'timestamp': datetime.now().strftime('%H:%M:%S'),
+                    'severity': 'HIGH',
+                    'type': 'INVALID_FUNCTION_CODE',
+                    'message': f"Invalid Modbus function code 0x{function_code:02X} from {source_ip}",
+                    'source_ip': source_ip,
+                    'function_code': function_code,
+                    'address': 0
+                }
+
+            # Store alert in shared state for visual display
+            if alert:
+                alerts = shared_state.get_state('security_alerts', [])
+                alerts.append(alert)
+
+                # Keep only last 50 alerts
+                if len(alerts) > 50:
+                    alerts = alerts[-50:]
+
+                shared_state.update_state('security_alerts', alerts)
+                print(f"[SECURITY] {alert['severity']}: {alert['message']}")
+
+        except Exception as e:
+            print(f"[SECURITY] Error detecting attack: {e}")
 
 # Global Modbus server instance
 modbus_server = None
@@ -1014,6 +1091,27 @@ def alarms_acknowledge():
     PROCESS_STATE['alarms'] = [a for a in PROCESS_STATE['alarms'] if a['id'] != alarm_id]
     log_action(session['username'], 'ack_alarm', f'Acknowledged alarm {alarm_id}')
 
+    return jsonify({'success': True})
+
+@app.route('/api/security/alerts')
+def security_alerts():
+    """Get security alerts from IDS - for visual display"""
+    # No authentication required - security alerts should be visible!
+    alerts = shared_state.get_state('security_alerts', [])
+
+    # Return last 10 alerts
+    return jsonify({
+        'success': True,
+        'alerts': alerts[-10:] if len(alerts) > 10 else alerts,
+        'total': len(alerts)
+    })
+
+@app.route('/api/security/alerts/clear', methods=['POST'])
+@require_role('admin', 'operator')
+def clear_security_alerts():
+    """Clear all security alerts"""
+    shared_state.update_state('security_alerts', [])
+    log_action(session['username'], 'clear_alerts', 'Cleared all security alerts')
     return jsonify({'success': True})
 
 @app.route('/api/trending/data')
