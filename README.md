@@ -144,6 +144,133 @@ modbus write-coil                   Pump 1 Status: false
 
 ---
 
+## 🎓 Interactive Training Scenarios
+
+**NEW!** Realistic ICS/SCADA attack scenarios for comprehensive security training. Each scenario includes step-by-step execution, real-world parallels, MITRE ATT&CK mappings, and blue team detection indicators.
+
+### Quick Start
+
+```bash
+# Run the interactive training menu
+./training_scenarios.py
+
+# Or directly with Python
+python3 training_scenarios.py
+```
+
+### 7 Professional Training Scenarios
+
+**1. Reconnaissance - System Discovery** `[Beginner]`
+- Network discovery and PLC fingerprinting
+- Port scanning techniques
+- MITRE ATT&CK: T0840 - Network Connection Enumeration
+- Teaches attackers how to map ICS networks, defenders how to detect scanning
+
+**2. Tank Overflow Attack (PLC-1)** `[Intermediate]`
+- Manipulate pump and valve controls to cause overflow
+- Real-world parallel: Water treatment facility attacks
+- MITRE ATT&CK: T0836 - Modify Parameter
+- Learn process manipulation and safety system impacts
+
+**3. Pressure Vessel Rupture (PLC-2)** `[Advanced]`
+- Over-pressurize vessel by disabling safety controls
+- Real-world parallel: Triton/TRISIS safety system attacks
+- MITRE ATT&CK: T0816 - Device Restart/Shutdown
+- Critical infrastructure sabotage techniques
+
+**4. Thermal Stress Attack (PLC-3)** `[Intermediate]`
+- Equipment degradation through rapid thermal cycling
+- Real-world parallel: Stuxnet equipment degradation methodology
+- MITRE ATT&CK: T0879 - Damage to Property
+- Subtle, long-term damage attacks
+
+**5. Safety System Shutdown (PLC-4)** `[Expert]`
+- Disable emergency stop and safety interlocks
+- Most dangerous scenario with safety warnings
+- MITRE ATT&CK: T0816 - Device Restart/Shutdown
+- Learn why safety systems are the primary target
+
+**6. Multi-Stage APT Campaign** `[Expert]`
+- Coordinated attack across all 4 PLCs
+- Real-world parallel: Nation-state APT campaigns
+- Multiple MITRE ATT&CK techniques
+- **TESTED:** 100% success rate, all 4 PLCs compromised, 10 alerts generated
+- Demonstrates cascading system failure and incident response
+
+**7. Stealthy Reconnaissance** `[Intermediate]`
+- Covert intelligence gathering with detection evasion
+- Learn how attackers avoid triggering alarms
+- MITRE ATT&CK: T0888 - Remote System Information Discovery
+- Advanced techniques for both red and blue teams
+
+### Training Features
+
+Each scenario includes:
+- ✅ Clear learning objectives and difficulty levels
+- ✅ MITRE ATT&CK for ICS technique mappings
+- ✅ Real-world attack parallels (Stuxnet, Triton, Industroyer)
+- ✅ Step-by-step execution with explanations
+- ✅ Expected impact analysis (physical, financial, safety)
+- ✅ Blue team detection indicators and response procedures
+- ✅ Color-coded terminal output for better learning
+- ✅ Interactive confirmations for dangerous attacks
+- ✅ Both offensive (red team) and defensive (blue team) perspectives
+
+### Training Paths
+
+**For Beginners:**
+1. Start with Scenario 1 (Reconnaissance)
+2. Progress to Scenario 2 (Tank Overflow)
+3. Try Scenario 7 (Stealthy Reconnaissance)
+
+**For Intermediate Users:**
+- Focus on Scenarios 2, 4, and 7
+- Study blue team detection indicators
+- Practice both attack and defense
+
+**For Advanced Users:**
+- Scenarios 3, 5, and 6
+- Multi-stage APT campaigns
+- Incident response procedures
+
+**For Expert Red Teams:**
+- Scenario 6 (Multi-Stage APT) - Nation-state level attack
+- Develop custom attack chains
+- Practice covert persistence
+
+### Real-World Attack Parallels
+
+Our scenarios are based on actual ICS attacks:
+- **Stuxnet (2010):** Equipment degradation through process manipulation
+- **Triton/TRISIS (2017):** Safety system targeting
+- **BlackEnergy (2015):** Multi-stage campaigns against utilities
+- **Industroyer (2016):** Coordinated ICS attacks
+
+### Documentation
+
+See [TRAINING_GUIDE.md](TRAINING_GUIDE.md) for:
+- Detailed scenario descriptions
+- Blue team response playbooks
+- Incident response procedures
+- Safety and ethics guidelines
+- Contributing new scenarios
+
+### Integration with Alert System
+
+All training scenarios trigger real-time alerts in the web interface:
+- View at http://localhost:5000/process (login: admin/admin)
+- Filter alerts by PLC or severity
+- Export to CSV for incident reports
+- Study attack patterns and timelines
+
+**Example: Scenario 6 (APT Campaign) generates:**
+- 10+ alerts across all 4 PLCs
+- 80% CRITICAL severity
+- Clear coordinated attack pattern
+- Complete incident timeline for analysis
+
+---
+
 ## 🌟 What's New in v2.0?
 
 ### 🔥 Real Modbus TCP on ALL 4 PLCs
