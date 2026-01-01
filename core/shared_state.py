@@ -50,15 +50,57 @@ DEFAULT_STATE = {
 }
 
 def init_state():
-    """Initialize state file if it doesn't exist"""
+    """
+    Initialize state file with proper type validation (Task 4)
+    Ensures ALL keys exist with correct data types
+    """
     # Ensure the shared directory exists
     state_dir = os.path.dirname(STATE_FILE)
     if not os.path.exists(state_dir):
         os.makedirs(state_dir, exist_ok=True)
 
+    # Load existing state or start with defaults
     if not os.path.exists(STATE_FILE):
-        save_state(DEFAULT_STATE)
-    return load_state()
+        save_state(DEFAULT_STATE.copy())
+        return DEFAULT_STATE.copy()
+
+    # Validate and repair existing state
+    state = load_state()
+    needs_repair = False
+
+    # Ensure all keys from DEFAULT_STATE exist
+    for key, default_value in DEFAULT_STATE.items():
+        if key not in state:
+            state[key] = default_value
+            needs_repair = True
+            print(f"[STATE] Repaired missing key: {key}")
+        # Type validation
+        elif key != 'alarms' and key != 'last_update':  # Skip special keys
+            expected_type = type(default_value)
+            if not isinstance(state[key], expected_type):
+                # Try to convert, or reset to default
+                try:
+                    if expected_type == bool:
+                        state[key] = bool(state[key])
+                    elif expected_type == int:
+                        state[key] = int(state[key])
+                    elif expected_type == float:
+                        state[key] = float(state[key])
+                    print(f"[STATE] Converted {key} to {expected_type.__name__}")
+                except (ValueError, TypeError):
+                    state[key] = default_value
+                    needs_repair = True
+                    print(f"[STATE] Repaired invalid type for {key}: {type(state[key])} -> {expected_type}")
+
+    # Ensure alarms is always a list
+    if not isinstance(state.get('alarms'), list):
+        state['alarms'] = []
+        needs_repair = True
+
+    if needs_repair:
+        save_state(state)
+
+    return state
 
 def load_state():
     """Load state from file with proper file locking"""
@@ -193,6 +235,60 @@ def state_to_coil(coil):
         value = get_state(key, False)
         return 1 if value else 0
     return 0
+
+# ==============================================================================
+# UNIFIED COIL/REGISTER ACCESS HELPERS (Task 2 - State Consistency)
+# ==============================================================================
+# These functions provide a single source of truth for coil/register access.
+# All Modbus handlers, HMI, and web interfaces MUST use these helpers to ensure
+# synchronized state across the entire system.
+# ==============================================================================
+
+def get_coil(addr):
+    """
+    Get coil value - ALWAYS returns 0 or 1
+    Used by: Modbus servers, HMI, web interface
+    """
+    value = state_to_coil(addr)
+    # Ensure coil is always 0 or 1
+    return 1 if value else 0
+
+def set_coil(addr, value):
+    """
+    Set coil value - accepts any truthy/falsy value, stores as bool
+    Used by: Modbus servers, HMI, web interface
+    """
+    # Convert to state key and boolean value
+    key, bool_value = coil_to_state(addr, value)
+    if key:
+        update_state(key, bool(bool_value))
+    else:
+        print(f"[WARN] Attempted to set unmapped coil {addr}")
+
+def get_register(addr):
+    """
+    Get register value - ALWAYS returns 0-65535
+    Used by: Modbus servers, HMI, web interface
+    """
+    value = state_to_register(addr)
+    # Clamp to valid Modbus register range
+    return max(0, min(65535, int(value)))
+
+def set_register(addr, value):
+    """
+    Set register value - converts Modbus register value to state value
+    Used by: Modbus servers, HMI, web interface
+    """
+    # Convert to state key and scaled value
+    key, converted_value = register_to_state(addr, value)
+    if key:
+        # Ensure numeric type
+        if isinstance(converted_value, (int, float)):
+            update_state(key, converted_value)
+        else:
+            print(f"[WARN] Invalid register value type for {key}: {type(converted_value)}")
+    else:
+        print(f"[WARN] Attempted to set unmapped register {addr}")
 
 if __name__ == '__main__':
     # Test the shared state

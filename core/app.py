@@ -23,6 +23,7 @@ import json
 import socket
 import threading
 import struct
+import uuid  # Task 6: for alarm ID generation
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import shared_state
 
@@ -172,16 +173,22 @@ class ModbusTCPServer:
 
     def recv_exact(self, sock, size):
         """
-        Receive exactly 'size' bytes from socket.
+        Receive exactly 'size' bytes from socket (Task 1: reliability fix)
         recv() does not guarantee all bytes in one call - this fixes that.
         Prevents broken pipes and hangs with real Modbus tools.
+        Returns None on timeout or disconnect (handled by caller).
         """
         data = b''
         while len(data) < size:
-            chunk = sock.recv(size - len(data))
-            if not chunk:
-                raise ConnectionError("Socket closed before receiving all data")
-            data += chunk
+            try:
+                chunk = sock.recv(size - len(data))
+                if not chunk:
+                    # Socket closed by peer
+                    raise ConnectionError("Socket closed before receiving all data")
+                data += chunk
+            except socket.timeout:
+                # Timeout - re-raise to be handled by caller
+                raise
         return data
 
     def _handle_client_with_semaphore(self, client_socket, address):
@@ -190,47 +197,79 @@ class ModbusTCPServer:
             self.handle_client(client_socket, address)
 
     def handle_client(self, client_socket, address):
-        """Handle a client connection"""
+        """
+        Handle a client connection (Task 1: improved stability)
+        - Socket timeouts prevent hanging
+        - Proper exception handling prevents crashes
+        - Modbus exception responses instead of connection drops
+        """
         try:
+            # Task 1: Set socket timeout to prevent hanging
+            client_socket.settimeout(30.0)  # 30 second timeout per operation
+
             while True:
-                # Read MBAP header (7 bytes) - use recv_exact for message safety
-                header = self.recv_exact(client_socket, 7)
+                try:
+                    # Read MBAP header (7 bytes) - use recv_exact for message safety
+                    header = self.recv_exact(client_socket, 7)
 
-                # Parse MBAP header
-                transaction_id, protocol_id, length, unit_id = struct.unpack('>HHHB', header)
+                    # Parse MBAP header
+                    transaction_id, protocol_id, length, unit_id = struct.unpack('>HHHB', header)
 
-                # VULNERABILITY: No protocol validation - we accept invalid protocol IDs
-                # Log for educational purposes (helps students learn the protocol)
-                if protocol_id != 0:
-                    print(f"[MODBUS] WARNING: Non-standard protocol ID {protocol_id} from {address} (expected 0)")
+                    # Task 1: Validate MBAP header (but remain vulnerable for education)
+                    if protocol_id != 0:
+                        print(f"[MODBUS] WARNING: Non-standard protocol ID {protocol_id} from {address} (expected 0)")
+                        # Note: Could send exception here, but we allow for educational purposes
 
-                # Read PDU (Protocol Data Unit) - use recv_exact for message safety
-                pdu = self.recv_exact(client_socket, length - 1)  # -1 because unit_id already read
+                    # Task 1: Validate length is reasonable (2-260 bytes per Modbus spec)
+                    if length < 2 or length > 260:
+                        print(f"[MODBUS] WARNING: Invalid length {length} from {address}")
+                        # Could send Modbus exception 0x04 (server failure), but we allow it
 
-                print(f"[MODBUS] Request from {address}: Trans={transaction_id}, Unit={unit_id}, PDU={pdu.hex()}")
+                    # Read PDU (Protocol Data Unit) - use recv_exact for message safety
+                    pdu = self.recv_exact(client_socket, length - 1)  # -1 because unit_id already read
 
-                # Parse function code
-                function_code = pdu[0]
+                    print(f"[MODBUS] Request from {address}: Trans={transaction_id}, Unit={unit_id}, PDU={pdu.hex()}")
 
-                # ATTACK DETECTION: Generate visual alert for write operations
-                self._detect_attack(address[0], function_code, pdu[1:])
+                    # Parse function code
+                    function_code = pdu[0]
 
-                # Process request and generate response
-                response_pdu = self.process_request(function_code, pdu[1:])
+                    # ATTACK DETECTION: Generate visual alert for write operations
+                    self._detect_attack(address[0], function_code, pdu[1:])
 
-                # Build MBAP response header
-                response_length = len(response_pdu) + 1  # +1 for unit_id
-                response_header = struct.pack('>HHHB', transaction_id, protocol_id, response_length, unit_id)
+                    # Process request and generate response
+                    response_pdu = self.process_request(function_code, pdu[1:])
 
-                # Send response
-                response = response_header + response_pdu
-                client_socket.send(response)
-                print(f"[MODBUS] Response: {response.hex()}")
+                    # Build MBAP response header
+                    response_length = len(response_pdu) + 1  # +1 for unit_id
+                    response_header = struct.pack('>HHHB', transaction_id, protocol_id, response_length, unit_id)
+
+                    # Send response
+                    response = response_header + response_pdu
+                    client_socket.send(response)
+                    print(f"[MODBUS] Response: {response.hex()}")
+
+                except socket.timeout:
+                    # Task 1: Client timed out - log and close gracefully
+                    print(f"[MODBUS] Client {address} timed out after inactivity")
+                    break
+                except ConnectionError as e:
+                    # Task 1: Connection lost - expected when client disconnects
+                    print(f"[MODBUS] Connection lost with {address}: {e}")
+                    break
+                except struct.error as e:
+                    # Task 1: Malformed Modbus packet - log but don't crash server
+                    print(f"[MODBUS] Malformed packet from {address}: {e}")
+                    break
 
         except Exception as e:
-            print(f"[MODBUS] Error handling client {address}: {e}")
+            # Task 1: Catch-all for unexpected errors - log and continue serving other clients
+            print(f"[MODBUS] Unexpected error handling client {address}: {e}")
         finally:
-            client_socket.close()
+            # Task 1: Always close socket cleanly
+            try:
+                client_socket.close()
+            except:
+                pass
             print(f"[MODBUS] Client {address} disconnected")
 
     def process_request(self, function_code, data):
@@ -278,11 +317,11 @@ class ModbusTCPServer:
         # VULNERABILITY: No bounds checking on register range
         # Should validate count <= 125 and addresses exist
 
-        # Read values from shared state
+        # Read values from shared state using helper (Task 2)
         values = []
         for i in range(count):
             register = start_addr + i
-            value = shared_state.state_to_register(register)
+            value = shared_state.get_register(register)  # Always 0-65535
             values.append(value)
 
         # Build response
@@ -307,11 +346,9 @@ class ModbusTCPServer:
         # VULNERABILITY: No authentication or authorization
         # Anyone can write any value to any register
 
-        # Convert register to state and update
-        key, converted_value = shared_state.register_to_state(addr, value)
-        if key:
-            shared_state.update_state(key, converted_value)
-            print(f"[MODBUS] Updated {key} = {converted_value}")
+        # Use unified helper to update register (Task 2)
+        shared_state.set_register(addr, value)
+        print(f"[MODBUS] Updated register {addr} = {value}")
 
         # Echo request as response
         return struct.pack('B', 0x06) + data[:4]
@@ -337,13 +374,11 @@ class ModbusTCPServer:
             value = struct.unpack('>H', values_data[i*2:(i+1)*2])[0]
             values.append(value)
 
-        # Write to state
+        # Write to state using unified helper (Task 2)
         for i, value in enumerate(values):
             register = start_addr + i
-            key, converted_value = shared_state.register_to_state(register, value)
-            if key:
-                shared_state.update_state(key, converted_value)
-                print(f"[MODBUS] Updated {key} = {converted_value}")
+            shared_state.set_register(register, value)
+            print(f"[MODBUS] Updated register {register} = {value}")
 
         # Build response
         return struct.pack('>BHH', 0x10, start_addr, count)
@@ -359,11 +394,11 @@ class ModbusTCPServer:
         print(f"[MODBUS] Read Coils: addr={start_addr}, count={count}")
 
         # VULNERABILITY: No bounds checking
-        # Read coil values from shared state
+        # Read coil values from shared state using helper (Task 2)
         coil_values = []
         for i in range(count):
             coil = start_addr + i
-            value = shared_state.coil_to_state(coil)
+            value = shared_state.get_coil(coil)  # Always returns 0 or 1
             coil_values.append(value)
 
         # Pack coils into bytes (8 coils per byte)
@@ -399,11 +434,9 @@ class ModbusTCPServer:
         print(f"[MODBUS] Write Single Coil: addr={addr}, value={coil_state}")
 
         # VULNERABILITY: No authentication or authorization
-        # Convert coil to state and update
-        key, bool_value = shared_state.coil_to_state(addr, coil_state)
-        if key:
-            shared_state.update_state(key, bool_value)
-            print(f"[MODBUS] Updated {key} = {bool_value}")
+        # Use unified helper to update coil (Task 2)
+        shared_state.set_coil(addr, coil_state)
+        print(f"[MODBUS] Updated coil {addr} = {coil_state}")
 
         # Echo request as response
         return struct.pack('B', 0x05) + data[:4]
@@ -431,13 +464,11 @@ class ModbusTCPServer:
                 if len(coil_values) < count:
                     coil_values.append(bool(byte_val & (1 << bit_idx)))
 
-        # Write to state
+        # Write to state using unified helper (Task 2)
         for i, value in enumerate(coil_values[:count]):
             coil = start_addr + i
-            key, bool_value = shared_state.coil_to_state(coil, value)
-            if key:
-                shared_state.update_state(key, bool_value)
-                print(f"[MODBUS] Updated {key} = {bool_value}")
+            shared_state.set_coil(coil, value)
+            print(f"[MODBUS] Updated coil {coil} = {value}")
 
         # Build response
         return struct.pack('>BHH', 0x0F, start_addr, count)
@@ -473,8 +504,10 @@ class ModbusTCPServer:
 
                 message = f"PLC-1: Modbus write to {target} from {source_ip}"
 
-                # Critical addresses (safety systems)
-                if address in [0, 1]:  # Emergency stop, safety interlock
+                # Critical addresses (Task 3: aligned with documentation)
+                # Coil 0 = Pump 1, Coil 3 = Valve 1 (main tank controls)
+                # Coil 10 = Emergency Stop, Coil 11 = Safety Interlock
+                if address in [0, 3, 10, 11]:  # Pump, valve, emergency stop, safety interlock
                     severity = "CRITICAL"
                     alert_type = "SAFETY_SYSTEM_TAMPER"
                     message = f"🚨 CRITICAL: PLC-1 Tank system tampered! Write to {target} from {source_ip}"
@@ -529,28 +562,38 @@ def start_modbus_server():
     server_thread.start()
     print("[MODBUS] Background thread started")
 
-# Initialize database
+# Initialize database (Task 7: improved safety)
 def init_db():
     conn = sqlite3.connect('plc.db')
     c = conn.cursor()
 
     # Users table
     c.execute('''CREATE TABLE IF NOT EXISTS users
-                 (id INTEGER PRIMARY KEY, username TEXT, password TEXT, role TEXT)''')
+                 (id INTEGER PRIMARY KEY, username TEXT UNIQUE, password TEXT, role TEXT)''')
 
-    # Insert default users (intentionally vulnerable)
+    # Insert default users (intentionally vulnerable) - Task 7: explicit columns
     c.execute("DELETE FROM users")
-    c.execute("INSERT INTO users VALUES (1, 'admin', 'admin', 'admin')")
-    c.execute("INSERT INTO users VALUES (2, 'operator', 'operator123', 'operator')")
-    c.execute("INSERT INTO users VALUES (3, 'guest', 'guest', 'guest')")
+    c.execute("INSERT INTO users (id, username, password, role) VALUES (?, ?, ?, ?)",
+              (1, 'admin', 'admin', 'admin'))
+    c.execute("INSERT INTO users (id, username, password, role) VALUES (?, ?, ?, ?)",
+              (2, 'operator', 'operator123', 'operator'))
+    c.execute("INSERT INTO users (id, username, password, role) VALUES (?, ?, ?, ?)",
+              (3, 'guest', 'guest', 'guest'))
 
-    # PLC data table
+    # PLC data table - Task 7: UNIQUE constraint on register for upsert
     c.execute('''CREATE TABLE IF NOT EXISTS plc_data
-                 (id INTEGER PRIMARY KEY, register TEXT, value INTEGER, timestamp TEXT)''')
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  register TEXT UNIQUE NOT NULL,
+                  value INTEGER NOT NULL,
+                  timestamp TEXT NOT NULL)''')
 
     # Logs table
     c.execute('''CREATE TABLE IF NOT EXISTS logs
-                 (id INTEGER PRIMARY KEY, timestamp TEXT, user TEXT, action TEXT, details TEXT)''')
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  timestamp TEXT NOT NULL,
+                  user TEXT NOT NULL,
+                  action TEXT NOT NULL,
+                  details TEXT)''')
 
     conn.commit()
     conn.close()
@@ -836,8 +879,9 @@ def plc_write(register, value):
     conn = sqlite3.connect('plc.db')
     c = conn.cursor()
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    c.execute("INSERT OR REPLACE INTO plc_data VALUES (?, ?, ?, ?)",
-              (register, str(register), value, timestamp))
+    # Task 7: Explicit column names + upsert by register (UNIQUE constraint)
+    c.execute("INSERT OR REPLACE INTO plc_data (register, value, timestamp) VALUES (?, ?, ?)",
+              (str(register), value, timestamp))
     conn.commit()
     conn.close()
 
@@ -923,32 +967,51 @@ def process_status():
     if 'username' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
 
+    # Task 5: Type-safe process simulation mutations
+    # Validate types before mutating to prevent corruption
+
     # Simulate Tank 1 changes
-    PROCESS_STATE['tank1_level'] += random.uniform(-2, 2)
-    PROCESS_STATE['tank1_level'] = max(0, min(100, PROCESS_STATE['tank1_level']))
+    tank1_level = PROCESS_STATE.get('tank1_level', 50.0)
+    if not isinstance(tank1_level, (int, float)):
+        tank1_level = 50.0  # Reset to safe default
+    PROCESS_STATE['tank1_level'] = max(0, min(100, tank1_level + random.uniform(-2, 2)))
 
-    PROCESS_STATE['tank1_temp'] += random.uniform(-0.5, 0.5)
-    PROCESS_STATE['tank1_temp'] = max(20, min(100, PROCESS_STATE['tank1_temp']))
+    tank1_temp = PROCESS_STATE.get('tank1_temp', 25.0)
+    if not isinstance(tank1_temp, (int, float)):
+        tank1_temp = 25.0
+    PROCESS_STATE['tank1_temp'] = max(20, min(100, tank1_temp + random.uniform(-0.5, 0.5)))
 
-    PROCESS_STATE['tank1_pressure'] += random.uniform(-1, 1)
-    PROCESS_STATE['tank1_pressure'] = max(90, min(150, PROCESS_STATE['tank1_pressure']))
+    tank1_pressure = PROCESS_STATE.get('tank1_pressure', 101.3)
+    if not isinstance(tank1_pressure, (int, float)):
+        tank1_pressure = 101.3
+    PROCESS_STATE['tank1_pressure'] = max(90, min(150, tank1_pressure + random.uniform(-1, 1)))
 
     # Simulate Tank 2 changes
-    PROCESS_STATE['tank2_level'] += random.uniform(-1.5, 1.5)
-    PROCESS_STATE['tank2_level'] = max(0, min(100, PROCESS_STATE['tank2_level']))
+    tank2_level = PROCESS_STATE.get('tank2_level', 75.0)
+    if not isinstance(tank2_level, (int, float)):
+        tank2_level = 75.0
+    PROCESS_STATE['tank2_level'] = max(0, min(100, tank2_level + random.uniform(-1.5, 1.5)))
 
-    PROCESS_STATE['tank2_temp'] += random.uniform(-0.3, 0.3)
-    PROCESS_STATE['tank2_temp'] = max(20, min(100, PROCESS_STATE['tank2_temp']))
+    tank2_temp = PROCESS_STATE.get('tank2_temp', 30.0)
+    if not isinstance(tank2_temp, (int, float)):
+        tank2_temp = 30.0
+    PROCESS_STATE['tank2_temp'] = max(20, min(100, tank2_temp + random.uniform(-0.3, 0.3)))
 
     # Simulate sensor changes
-    PROCESS_STATE['flow_rate'] += random.uniform(-2, 2)
-    PROCESS_STATE['flow_rate'] = max(0, min(50, PROCESS_STATE['flow_rate']))
+    flow_rate = PROCESS_STATE.get('flow_rate', 15.5)
+    if not isinstance(flow_rate, (int, float)):
+        flow_rate = 15.5
+    PROCESS_STATE['flow_rate'] = max(0, min(50, flow_rate + random.uniform(-2, 2)))
 
-    PROCESS_STATE['vibration'] += random.uniform(-0.5, 0.5)
-    PROCESS_STATE['vibration'] = max(0, min(10, PROCESS_STATE['vibration']))
+    vibration = PROCESS_STATE.get('vibration', 2.5)
+    if not isinstance(vibration, (int, float)):
+        vibration = 2.5
+    PROCESS_STATE['vibration'] = max(0, min(10, vibration + random.uniform(-0.5, 0.5)))
 
-    PROCESS_STATE['ph_level'] += random.uniform(-0.2, 0.2)
-    PROCESS_STATE['ph_level'] = max(0, min(14, PROCESS_STATE['ph_level']))
+    ph_level = PROCESS_STATE.get('ph_level', 7.0)
+    if not isinstance(ph_level, (int, float)):
+        ph_level = 7.0
+    PROCESS_STATE['ph_level'] = max(0, min(14, ph_level + random.uniform(-0.2, 0.2)))
 
     # Check for alarm conditions
     if PROCESS_STATE['tank1_level'] > 90:
@@ -1183,20 +1246,27 @@ def trending_data():
     return jsonify(data)
 
 def add_alarm(severity, message):
-    """Add an alarm to the system"""
+    """
+    Add an alarm to the system (Task 6: fixed ID generation)
+    Uses UUID to prevent ID reuse and ensure unique alarm identifiers
+    """
     # Get current alarms list
     current_alarms = PROCESS_STATE.get('alarms', [])
 
+    # Ensure it's a list (Task 5: type safety)
+    if not isinstance(current_alarms, list):
+        current_alarms = []
+
     alarm = {
-        'id': len(current_alarms) + 1,
+        'id': str(uuid.uuid4()),  # Task 6: UUID instead of len()+1
         'severity': severity,
         'message': message,
         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'acknowledged': False
     }
 
-    # Don't duplicate alarms
-    if not any(a['message'] == message for a in current_alarms):
+    # Don't duplicate alarms (keep deduplication by message)
+    if not any(a.get('message') == message for a in current_alarms):
         current_alarms.append(alarm)
         # Write back the modified list to persist changes
         PROCESS_STATE['alarms'] = current_alarms

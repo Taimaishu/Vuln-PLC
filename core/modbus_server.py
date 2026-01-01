@@ -27,7 +27,7 @@ class SyncedDataBlock(ModbusSequentialDataBlock):
         self.is_coil = is_coil
 
     def setValues(self, address, values):
-        """Override to sync changes to shared state"""
+        """Override to sync changes to shared state (Task 2: use unified helpers)"""
         super().setValues(address, values)
 
         # Update shared state when registers/coils are written
@@ -35,15 +35,13 @@ class SyncedDataBlock(ModbusSequentialDataBlock):
             reg_addr = address + i
 
             if self.is_coil:
-                key, state_value = shared_state.coil_to_state(reg_addr, value)
-                if key:
-                    shared_state.update_state(key, state_value)
-                    print(f"[Modbus] Coil {reg_addr} → {key} = {state_value}")
+                # Task 2: Use unified helper for consistency
+                shared_state.set_coil(reg_addr, value)
+                print(f"[Modbus] Coil {reg_addr} = {value}")
             else:
-                key, state_value = shared_state.register_to_state(reg_addr, value)
-                if key:
-                    shared_state.update_state(key, state_value)
-                    print(f"[Modbus] Register {reg_addr} → {key} = {state_value}")
+                # Task 2: Use unified helper for consistency
+                shared_state.set_register(reg_addr, value)
+                print(f"[Modbus] Register {reg_addr} = {value}")
 
 class ModbusPLCServer:
     def __init__(self, host='0.0.0.0', port=5502):
@@ -57,15 +55,15 @@ class ModbusPLCServer:
     def initialize_data_store(self):
         """Initialize Modbus data store with values from shared state"""
 
-        # Initialize holding registers from shared state
+        # Initialize holding registers from shared state (Task 2: use helpers)
         hr_values = [0] * 100
         for reg in range(100):
-            hr_values[reg] = shared_state.state_to_register(reg)
+            hr_values[reg] = shared_state.get_register(reg)
 
-        # Initialize coils from shared state
+        # Initialize coils from shared state (Task 2: use helpers)
         coil_values = [0] * 100
         for coil in range(100):
-            coil_values[coil] = shared_state.state_to_coil(coil)
+            coil_values[coil] = shared_state.get_coil(coil)
 
         # Create data blocks with syncing
         store = ModbusSlaveContext(
@@ -90,16 +88,16 @@ class ModbusPLCServer:
                 slave_id = 0x00
                 state = shared_state.load_state()
 
-                # Update holding registers from state
+                # Update holding registers from state (Task 2: use helpers)
                 # Use parent class setValues to bypass SyncedDataBlock override (prevents feedback loop)
                 for reg in range(20):  # Only update mapped registers
-                    value = shared_state.state_to_register(reg)
+                    value = shared_state.get_register(reg)
                     ModbusSequentialDataBlock.setValues(self.context[slave_id].store['h'], reg, [value])
 
-                # Update coils from state
+                # Update coils from state (Task 2: use helpers)
                 # Use parent class setValues to bypass SyncedDataBlock override (prevents feedback loop)
                 for coil in range(15):  # Only update mapped coils
-                    value = shared_state.state_to_coil(coil)
+                    value = shared_state.get_coil(coil)
                     ModbusSequentialDataBlock.setValues(self.context[slave_id].store['c'], coil, [value])
 
             except Exception as e:
