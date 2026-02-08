@@ -99,6 +99,10 @@ secrets.txt
 *.key
 *.pem
 
+# Runtime state files
+shared/
+*.pcapng
+
 # Keep important files
 !requirements.txt
 !README.md

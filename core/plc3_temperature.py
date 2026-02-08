@@ -33,12 +33,11 @@ USERS = {
 }
 
 def get_plc3_state():
+    """Get PLC-3 state from shared storage"""
     state = shared_state.load_state()
-    plc3_state = {}
-    for key, value in state.items():
-        if key.startswith('plc3_'):
-            plc3_state[key.replace('plc3_', '')] = value
-    return plc3_state
+    # Return all state - filtering was causing UI to be empty
+    # PLCs share the same state space for realistic process simulation
+    return state
 
 @app.route('/')
 def index():

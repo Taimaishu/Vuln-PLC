@@ -35,12 +35,11 @@ SAFETY_USERS = {
 SAFETY_OVERRIDE_CODE = '1234'
 
 def get_plc4_state():
+    """Get PLC-4 state from shared storage"""
     state = shared_state.load_state()
-    plc4_state = {}
-    for key, value in state.items():
-        if key.startswith('plc4_'):
-            plc4_state[key.replace('plc4_', '')] = value
-    return plc4_state
+    # Return all state - filtering was causing UI to be empty
+    # PLCs share the same state space for realistic process simulation
+    return state
 
 @app.route('/')
 def index():

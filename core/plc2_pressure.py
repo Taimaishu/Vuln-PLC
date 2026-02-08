@@ -36,11 +36,9 @@ HARDCODED_CREDS = {
 def get_plc2_state():
     """Get PLC-2 state from shared storage"""
     state = shared_state.load_state()
-    plc2_state = {}
-    for key, value in state.items():
-        if key.startswith('plc2_'):
-            plc2_state[key.replace('plc2_', '')] = value
-    return plc2_state
+    # Return all state - filtering was causing UI to be empty
+    # PLCs share the same state space for realistic process simulation
+    return state
 
 @app.route('/')
 def index():

@@ -10,7 +10,14 @@ import threading
 import time
 import fcntl  # For file locking across processes
 
-STATE_FILE = '/app/shared/vulnplc_state.json'
+# Use environment variable or fallback to local path
+# Works both in Docker (/app/shared) and on host (./shared)
+STATE_DIR = os.environ.get('VULNPLC_STATE_DIR', '/app/shared')
+if not os.path.exists(STATE_DIR):
+    # Fallback to project root shared directory
+    STATE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'shared')
+
+STATE_FILE = os.path.join(STATE_DIR, 'vulnplc_state.json')
 LOCK = threading.Lock()
 
 # Default state
