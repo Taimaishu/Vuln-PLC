@@ -1,3 +1,13 @@
+# Vuln-PLC
+
+Vuln-PLC is a purpose-built vulnerable industrial control system (ICS) training lab developed by Black Hat Defense LLC for authorized ICS/SCADA security testing in controlled environments.
+
+The project is designed to simulate realistic operational technology (OT) attack surfaces—including unsafe configurations, exposed industrial protocols, and lateral movement paths—without risking production infrastructure.
+
+Vuln-PLC is used internally for red-team training, blue-team detection validation, and security assessment reporting practice.
+
+---
+
 # Vuln-PLC v2.0
 ### The Complete ICS/SCADA Security Training Platform
 
@@ -809,6 +819,20 @@ See **[CONTRIBUTING.md](docs/media/CONTRIBUTING.md)** for detailed guidelines.
 
 ---
 
+## Intended Use & Scope
+
+Vuln-PLC is intended for use in authorized training, research, and lab environments only.
+
+Common use cases include:
+- ICS/SCADA penetration testing practice
+- Red-team methodology development
+- Blue-team monitoring and detection validation
+- Security assessment reporting and documentation drills
+
+This project is intentionally vulnerable by design and is not intended to represent secure industrial configurations.
+
+---
+
 ## ⚠️ Security Notice
 
 **THIS IS INTENTIONALLY VULNERABLE SOFTWARE FOR EDUCATIONAL PURPOSES.**
@@ -871,3 +895,11 @@ If you find Vuln-PLC useful, please consider starring the repository!
 
 *Last Updated: 2025-12-28*
 *Version: 2.0.0*
+
+---
+
+## Legal Notice
+
+Vuln-PLC is provided strictly for educational and research purposes in controlled lab environments.
+
+Do NOT deploy this project in production or test real-world industrial systems without explicit written authorization. Unauthorized testing of operational technology may be illegal and dangerous.
