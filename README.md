@@ -8,6 +8,30 @@ Vuln-PLC is used internally for red-team training, blue-team detection validatio
 
 ---
 
+## 📸 Screenshots
+
+<p align="center">
+  <img src="docs/media/vuln-plc_start.png" alt="Vuln-PLC Startup" width="45%">
+  <img src="docs/media/plc1-login.png" alt="PLC Login Interface" width="45%">
+</p>
+
+<p align="center">
+  <img src="docs/media/plc1-admin-dashboard.png" alt="Admin Dashboard" width="45%">
+  <img src="docs/media/plc1-HMI.png" alt="HMI Interface" width="45%">
+</p>
+
+<p align="center">
+  <img src="docs/media/process-control-alerts.png" alt="Real-time Security Alerts" width="45%">
+  <img src="docs/media/attack.py.png" alt="Attack Script" width="45%">
+</p>
+
+<p align="center">
+  <img src="docs/media/modbu-cli_safety-bypass.png" alt="Modbus CLI Attack" width="45%">
+  <img src="docs/media/modbu-cli_safety-bypass_web-check.png" alt="Attack Verification" width="45%">
+</p>
+
+---
+
 # Vuln-PLC v2.0
 ### The Complete ICS/SCADA Security Training Platform
 
